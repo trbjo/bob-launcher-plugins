@@ -1,0 +1,8 @@
+[wrap-git]
+url = https://github.com/trbjo/bob-database-library.git
+
+revision = main
+depth = 1
+
+[provide]
+database = database_dep
