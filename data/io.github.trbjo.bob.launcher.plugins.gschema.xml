@@ -1,0 +1,792 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="io.github.trbjo.bob.launcher.plugins.process-monitor.sort-method">
+    <value nick="pid" value="0"/>
+    <value nick="cpu" value="1"/>
+    <value nick="memory" value="2"/>
+    <value nick="name" value="3"/>
+  </enum>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins" path="/io/github/trbjo/bob/launcher/plugins/">
+    <child name="api-bay" schema="io.github.trbjo.bob.launcher.plugins.api-bay"/>
+    <child name="calculator" schema="io.github.trbjo.bob.launcher.plugins.calculator"/>
+    <child name="chromium" schema="io.github.trbjo.bob.launcher.plugins.chromium"/>
+    <child name="clipboard-manager" schema="io.github.trbjo.bob.launcher.plugins.clipboard-manager"/>
+    <child name="command" schema="io.github.trbjo.bob.launcher.plugins.command"/>
+    <child name="common-actions" schema="io.github.trbjo.bob.launcher.plugins.common-actions"/>
+    <child name="desktop-file" schema="io.github.trbjo.bob.launcher.plugins.desktop-file"/>
+    <child name="downloads" schema="io.github.trbjo.bob.launcher.plugins.downloads"/>
+    <child name="file-operations" schema="io.github.trbjo.bob.launcher.plugins.file-operations"/>
+    <child name="file-search" schema="io.github.trbjo.bob.launcher.plugins.file-search"/>
+    <child name="firefox-history" schema="io.github.trbjo.bob.launcher.plugins.firefox-history"/>
+    <child name="gnome-bookmarks" schema="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks"/>
+    <child name="imgur" schema="io.github.trbjo.bob.launcher.plugins.imgur"/>
+    <child name="mpris" schema="io.github.trbjo.bob.launcher.plugins.mpris"/>
+    <child name="pass" schema="io.github.trbjo.bob.launcher.plugins.pass"/>
+    <child name="pastebin" schema="io.github.trbjo.bob.launcher.plugins.pastebin"/>
+    <child name="process-monitor" schema="io.github.trbjo.bob.launcher.plugins.process-monitor"/>
+    <child name="recently-used" schema="io.github.trbjo.bob.launcher.plugins.recently-used"/>
+    <child name="selection" schema="io.github.trbjo.bob.launcher.plugins.selection"/>
+    <child name="ssh" schema="io.github.trbjo.bob.launcher.plugins.ssh"/>
+    <child name="systemd-service" schema="io.github.trbjo.bob.launcher.plugins.systemd-service"/>
+    <child name="tracker-search" schema="io.github.trbjo.bob.launcher.plugins.tracker-search"/>
+    <child name="transmission" schema="io.github.trbjo.bob.launcher.plugins.transmission"/>
+    <child name="wifi" schema="io.github.trbjo.bob.launcher.plugins.wifi"/>
+    <child name="url-shortener" schema="io.github.trbjo.bob.launcher.plugins.url-shortener"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.api-bay" path="/io/github/trbjo/bob/launcher/plugins/api-bay/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Torrent Search</summary>
+      <description>Search for torrents on api-bay</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.api-bay.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.api-bay.settings" path="/io/github/trbjo/bob/launcher/plugins/api-bay/settings/">
+    <key name="char-threshold" type="u">
+      <default>3</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+    <key name="category-ids" type="ai">
+      <default>[100, 300, 600]</default>
+      <summary>Category IDs to search</summary>
+      <description>List of category IDs to include in searches</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.desktop-file" path="/io/github/trbjo/bob/launcher/plugins/desktop-file/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Application Search</summary>
+      <description>Search for and run applications on your computer.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.desktop-file.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.desktop-file.settings" path="/io/github/trbjo/bob/launcher/plugins/desktop-file/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.pass" path="/io/github/trbjo/bob/launcher/plugins/pass/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Pass Integration</summary>
+      <description>Quickly place passwords from your password store in the clipboard.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.pass.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.pass.settings" path="/io/github/trbjo/bob/launcher/plugins/pass/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.mpris" path="/io/github/trbjo/bob/launcher/plugins/mpris/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>MPRIS</summary>
+      <description>Control media playback.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.mpris.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.mpris.settings" path="/io/github/trbjo/bob/launcher/plugins/mpris/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.calculator" path="/io/github/trbjo/bob/launcher/plugins/calculator/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Calculator</summary>
+      <description>Calculate basic expressions.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.calculator.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.calculator.settings" path="/io/github/trbjo/bob/launcher/plugins/calculator/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.selection" path="/io/github/trbjo/bob/launcher/plugins/selection/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Active Selection</summary>
+      <description>Shows the active selection.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.selection.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.selection.settings" path="/io/github/trbjo/bob/launcher/plugins/selection/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.command" path="/io/github/trbjo/bob/launcher/plugins/command/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Command Search</summary>
+      <description>Find and execute arbitrary commands.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.command.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.command.settings" path="/io/github/trbjo/bob/launcher/plugins/command/settings/">
+    <key name="char-threshold" type="u">
+      <default>2</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.common-actions" path="/io/github/trbjo/bob/launcher/plugins/common-actions/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Execute common actions</summary>
+      <description>Find and execute arbitrary commands.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.ssh" path="/io/github/trbjo/bob/launcher/plugins/ssh/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>SSH</summary>
+      <description>Connect to host with SSH</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.ssh.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.ssh.settings" path="/io/github/trbjo/bob/launcher/plugins/ssh/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.downloads" path="/io/github/trbjo/bob/launcher/plugins/downloads/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Downloads</summary>
+      <description>View most recent downloads</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.downloads.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.downloads.settings" path="/io/github/trbjo/bob/launcher/plugins/downloads/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.tracker-search" path="/io/github/trbjo/bob/launcher/plugins/tracker-search/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Tracker Search</summary>
+      <description>Search for files and content with Gnome's tracker service</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.tracker-search.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.tracker-search.settings" path="/io/github/trbjo/bob/launcher/plugins/tracker-search/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.chromium" path="/io/github/trbjo/bob/launcher/plugins/chromium/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Chromium</summary>
+      <description>Browse and open Chromium bookmarks.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.chromium.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.chromium.settings" path="/io/github/trbjo/bob/launcher/plugins/chromium/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.firefox-history" path="/io/github/trbjo/bob/launcher/plugins/firefox-history/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Firefox History</summary>
+      <description>Search Firefox browsing history.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.firefox-history.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.firefox-history.settings" path="/io/github/trbjo/bob/launcher/plugins/firefox-history/settings/">
+    <key name="char-threshold" type="u">
+      <default>3</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.clipboard-manager" path="/io/github/trbjo/bob/launcher/plugins/clipboard-manager/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Clipboard Manager</summary>
+      <description>Search and manage clipboard history.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.clipboard-manager.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.clipboard-manager.settings" path="/io/github/trbjo/bob/launcher/plugins/clipboard-manager/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.transmission" path="/io/github/trbjo/bob/launcher/plugins/transmission/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Transmission Torrents</summary>
+      <description>A plugin to show Transmission torrents.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.transmission.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.transmission.settings" path="/io/github/trbjo/bob/launcher/plugins/transmission/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>1000</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+    <key name="remote-urls" type="as">
+      <summary>Remote Transmission URLs</summary>
+      <description>List of remote URLs where Transmission is running</description>
+      <default>['http://127.0.0.1:9091/transmission/rpc']</default>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks" path="/io/github/trbjo/bob/launcher/plugins/gnome-bookmarks/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>GNOME Bookmarks</summary>
+      <description>Browse and open GNOME bookmarks.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks.settings" path="/io/github/trbjo/bob/launcher/plugins/gnome-bookmarks/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.process-monitor" path="/io/github/trbjo/bob/launcher/plugins/process-monitor/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Process Monitor</summary>
+      <description>A plugin to show and search running processes.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.process-monitor.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.process-monitor.settings" path="/io/github/trbjo/bob/launcher/plugins/process-monitor/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>1000</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+    <key name="sort-by" enum="io.github.trbjo.bob.launcher.plugins.process-monitor.sort-method">
+      <default>'pid'</default>
+      <summary>Process sort order</summary>
+      <description>Method to sort the process list (pid, cpu, memory, or name).</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.recently-used" path="/io/github/trbjo/bob/launcher/plugins/recently-used/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Recently Used</summary>
+      <description>A plugin to show the most recently used files.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.recently-used.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.recently-used.settings" path="/io/github/trbjo/bob/launcher/plugins/recently-used/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.systemd-service" path="/io/github/trbjo/bob/launcher/plugins/systemd-service/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Systemd User Services</summary>
+      <description>Show and manage systemd services.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.systemd-service.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.systemd-service.settings" path="/io/github/trbjo/bob/launcher/plugins/systemd-service/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.file-operations" path="/io/github/trbjo/bob/launcher/plugins/file-operations/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>File Operations</summary>
+      <description>Copy, Cut, Paste and Delete files</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.imgur" path="/io/github/trbjo/bob/launcher/plugins/imgur/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Imgur</summary>
+      <description>Share images using imgur.</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.imgur.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.imgur.settings" path="/io/github/trbjo/bob/launcher/plugins/imgur/settings/">
+    <key name="client-id" type="s">
+      <summary>The Client ID</summary>
+      <description>Register an account on imgur and put it here to use this plugin</description>
+      <default>''</default>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.pastebin" path="/io/github/trbjo/bob/launcher/plugins/pastebin/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Paste to c-net</summary>
+      <description>Upload files to paste.c-net.org.</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.file-search" path="/io/github/trbjo/bob/launcher/plugins/file-search/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>File Search</summary>
+      <description>Search your files</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.file-search.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.file-search.settings" path="/io/github/trbjo/bob/launcher/plugins/file-search/settings/">
+    <key name="char-threshold" type="u">
+      <default>1</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+    <key name="directory-configs" type="a(sibb)">
+      <default>[('$HOME', 2, false, true)]</default>
+      <summary>Directory Configurations</summary>
+      <description>List of directory configurations for file search. Each entry is (path, max_depth, show_hidden, respect_gitignore)</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.url-shortener" path="/io/github/trbjo/bob/launcher/plugins/url-shortener/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>URL shortener</summary>
+      <description>Shorten long urls</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.wifi" path="/io/github/trbjo/bob/launcher/plugins/wifi/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>WiFi Manager</summary>
+      <description>Connect and disconnect from you wifi networks</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.wifi.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.wifi.settings" path="/io/github/trbjo/bob/launcher/plugins/wifi/settings/">
+    <key name="char-threshold" type="u">
+      <default>0</default>
+      <range min="0" max="10"/>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="d">
+      <default>0.0</default>
+      <range min="-10.0" max="10.0"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>1000</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+</schemalist>
