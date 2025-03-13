@@ -17,7 +17,6 @@
 #include <result-container.h>
 #include <immintrin.h>
 #include <stdatomic.h>
-#include <gdk/gdk.h>
 
 G_BEGIN_DECLS
 
@@ -576,10 +575,6 @@ VALA_EXTERN gboolean bob_launcher_utils_launch_file (GFile* file);
 VALA_EXTERN void bob_launcher_utils_launch_app (GAppInfo* app_info);
 VALA_EXTERN void bob_launcher_utils_launch_uri (const gchar* uri);
 VALA_EXTERN gboolean bob_launcher_utils_is_all_lowercase (const gchar* str);
-VALA_EXTERN GdkPaintable* bob_launcher_icon_cache_service_get_paintable_for_icon_name (const gchar* icon_name,
-                                                                           gint size,
-                                                                           gint scale);
-VALA_EXTERN gchar* bob_launcher_icon_cache_service_best_icon_name_for_mime_type (const gchar* content_type);
 VALA_EXTERN gchar* bob_launcher_utils_format_modification_time (GDateTime* now,
                                                     GDateTime* mod_time);
 VALA_EXTERN void bob_launcher_utils_open_command_line (const gchar* command,

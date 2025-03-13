@@ -3,12 +3,6 @@
 namespace BobLauncher {
 	namespace DragAndDropHandler {
 	}
-	namespace IconCacheService {
-		[CCode (cheader_filename = "bob-launcher.h")]
-		public static string best_icon_name_for_mime_type (string? content_type);
-		[CCode (cheader_filename = "bob-launcher.h")]
-		public static unowned Gdk.Paintable get_paintable_for_icon_name (string icon_name, int size, int scale);
-	}
 	namespace LayerShell {
 	}
 	namespace ScrollController {

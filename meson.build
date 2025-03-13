@@ -104,6 +104,7 @@ plugin_vala_args = [
     '--pkg=levensteihn',
     '--pkg=data-sink-actions',
     '--pkg=bob-launcher',
+    '--pkg=icon-cache-service',
     '--pkg=result-container',
 ]
 

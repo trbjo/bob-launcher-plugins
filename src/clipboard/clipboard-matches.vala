@@ -160,7 +160,7 @@ namespace BobLauncher {
                 error("text is null");
             }
 
-            var icon_type = BobLauncher.IconCacheService.best_icon_name_for_mime_type(content_type);
+            var icon_type = IconCacheService.best_icon_name_for_mime_type(content_type);
 
             Object(primkey: primkey, icon_type: icon_type);
             this.content_type = content_type;
