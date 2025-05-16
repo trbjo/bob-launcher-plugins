@@ -408,10 +408,12 @@ namespace BobLauncher {
                         null
                     );
 
+                    Variant? result = null;
+
                     if (extra != null) {
-                        proxy.call_sync(method, extra, DBusCallFlags.NONE, -1, null);
+                        result = proxy.call_sync(method, extra, DBusCallFlags.NONE, -1, null);
                     } else {
-                        proxy.call_sync(method,
+                        result = proxy.call_sync(method,
                             new Variant("(ss)", unit_name, mode),
                             DBusCallFlags.NONE,
                             -1,
@@ -419,6 +421,13 @@ namespace BobLauncher {
                         );
                     }
                     debug(@"$method executed on $unit_name");
+
+                    if (result != null) {
+                        debug(@"Result: %s", result.print(true)); // Use print() method instead
+                    }
+
+                    proxy.call_sync("Reload", null, DBusCallFlags.NONE, -1, null);
+
                 } catch (Error e) {
                     warning(@"Error executing $method on $unit_name: %s", e.message);
                 }
@@ -554,7 +563,7 @@ namespace BobLauncher {
             public EnableServiceAction(BusType bus_type) {
                 base("Enable Service",
                      "Enable the service to start on boot",
-                     "object-select",
+                     "list-add",
                      bus_type);
             }
 
@@ -675,10 +684,19 @@ namespace BobLauncher {
             public override bool do_execute(Match source, Match? target = null) {
                 if (source is SystemdServiceMatch) {
                     var service_match = (SystemdServiceMatch)source;
+
+                    var files = new string[] { service_match.unit_name };
+
+                    var variant = new Variant.tuple({
+                        new Variant.strv(files),     // as - array of strings
+                        new Variant.boolean(false),  // b - first boolean (runtime)
+                        new Variant.boolean(true)    // b - second boolean (force)
+                    });
+
                     execute_systemd_action("MaskUnitFiles",
                         service_match.unit_name,
                         "replace",
-                        new Variant("(asbb)", new string[] { service_match.unit_name }, false, true)
+                        variant
                     );
                     return true;
                 }
@@ -690,7 +708,7 @@ namespace BobLauncher {
             public UnmaskServiceAction(BusType bus_type) {
                 base("Unmask Service",
                      "Unmask the service to allow it to be started",
-                     "unlock",
+                     "view-private",
                      bus_type);
             }
 
@@ -701,10 +719,17 @@ namespace BobLauncher {
             public override bool do_execute(Match source, Match? target = null) {
                 if (source is SystemdServiceMatch) {
                     var service_match = (SystemdServiceMatch)source;
+
+                    var files = new string[] { service_match.unit_name };
+                    var variant = new Variant.tuple({
+                        new Variant.strv(files),     // as - array of strings
+                        new Variant.boolean(false)   // b - boolean (runtime)
+                    });
+
                     execute_systemd_action("UnmaskUnitFiles",
                         service_match.unit_name,
                         "replace",
-                        new Variant("(asb)", new string[] { service_match.unit_name }, false)
+                        variant
                     );
                     return true;
                 }
