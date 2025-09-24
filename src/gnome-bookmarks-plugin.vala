@@ -37,7 +37,7 @@ namespace BobLauncher {
         }
 
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             bookmarks = new GenericArray<BookmarkMatch>();
             var filename = Path.build_filename(Environment.get_user_config_dir(), "gtk-3.0", "bookmarks");
 
@@ -63,7 +63,7 @@ namespace BobLauncher {
             }
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             bookmarks = new GenericArray<BookmarkMatch>();
         }
 
@@ -80,7 +80,7 @@ namespace BobLauncher {
             public uint hash { get; construct; }
 
             public BookmarkMatch(string name, string uri) {
-                Object(filename: uri_to_path(uri), hash: uri.hash());
+                Object(filename: uri_to_path(uri), hash: uri_to_path(uri).hash());
             }
         }
 
@@ -88,10 +88,10 @@ namespace BobLauncher {
             foreach (var bmk in bookmarks) {
                 if (rs.has_match(bmk.get_title())) {
                     var score = rs.match_score(bmk.get_title());
-                    rs.add_lazy(bmk.hash, score + bonus, bmk.func);
+                    rs.add_lazy(bmk.hash, score, bmk.func);
                 } else if (rs.has_match(bmk.filename)){
                     var score = rs.match_score(bmk.filename);
-                    rs.add_lazy(bmk.hash, score + bonus, bmk.func);
+                    rs.add_lazy(bmk.hash, score, bmk.func);
                 }
             }
         }

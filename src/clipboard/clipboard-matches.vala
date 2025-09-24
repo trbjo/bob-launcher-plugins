@@ -1,15 +1,123 @@
 namespace BobLauncher {
-    public class ClipboardMatch : Match {
+    public class ClipboardMatch : Match, IRichDescription {
         public uint32 primkey { get; construct; }
         public string icon_type { get; construct; }
         private int max_tooltip_length = 3000;
         private string title;
         private string content;
-        private string description;
-        private string content_type;
+        private string timestamp_text;
+        private int character_count = 0;
+        public string content_type;
+
+        private Description? _cached_description = null;
 
         public override string get_title() {
             return title;
+        }
+
+        public override string get_description() {
+            assert_not_reached();
+        }
+
+        public override string get_icon_name() {
+            return icon_type;
+        }
+
+        public unowned Description get_rich_description(Levensteihn.StringInfo si) {
+            if (_cached_description == null) {
+                _cached_description = build_rich_description();
+            }
+            return _cached_description;
+        }
+
+        private Description build_rich_description() {
+            var root = new Description.container("clipboard-description");
+
+            var timestamp_group = new Description.container("timestamp-group", Gtk.Orientation.HORIZONTAL);
+
+            var separator = new Description("tools-timer-symbolic", "timestamp-image", FragmentType.IMAGE, null);
+            timestamp_group.add_child(separator);
+
+            var time_desc = new Description(timestamp_text, "timestamp", FragmentType.TEXT, null);
+            timestamp_group.add_child(time_desc);
+
+            root.add_child(timestamp_group);
+
+            if (character_count > 0) {
+                var count_group = new Description.container("count-group", Gtk.Orientation.HORIZONTAL);
+
+                var count_icon = new Description("text-x-generic-symbolic", "count-image", FragmentType.IMAGE, null);
+                count_group.add_child(count_icon);
+
+                var count_desc = new Description("%d characters".printf(character_count), "count-text", FragmentType.TEXT, null);
+                count_group.add_child(count_desc);
+
+                root.add_child(count_group);
+            }
+
+            return root;
+        }
+
+        public class ColorPreview : Gtk.Widget {
+            private string _color_string;
+            private Gdk.RGBA? _color = null;
+
+            public ColorPreview(string color_string) {
+                Object();
+                _color_string = color_string;
+                _color = Gdk.RGBA();
+                _color.parse(color_string);
+            }
+
+            construct {
+                overflow = Gtk.Overflow.HIDDEN;
+                css_classes = {"tooltip-color"};
+            }
+
+            public override Gtk.SizeRequestMode get_request_mode() {
+                return Gtk.SizeRequestMode.CONSTANT_SIZE;
+            }
+
+            public override void snapshot(Gtk.Snapshot snapshot) {
+                var width = get_width();
+                var height = get_height();
+
+                var color_rect = Graphene.Rect();
+                color_rect.init(0, 0, width, height);
+
+                var color_rounded = Gsk.RoundedRect();
+                color_rounded.init_from_rect(color_rect, 0);
+                snapshot.push_rounded_clip(color_rounded);
+                snapshot.append_color(_color, color_rect);
+                snapshot.pop();
+
+                var text_color = contrast_color(_color);
+                var layout = create_pango_layout(_color_string);
+                var font = Pango.FontDescription.from_string("Sans 10");
+                layout.set_font_description(font);
+
+                int text_width, text_height;
+                layout.get_size(out text_width, out text_height);
+
+                var text_x = (width - text_width / Pango.SCALE) / 2;
+                var text_y = (height - text_height / Pango.SCALE) / 2;
+
+                snapshot.save();
+                snapshot.translate(Graphene.Point().init(text_x, text_y));
+                snapshot.append_layout(layout, text_color);
+                snapshot.restore();
+            }
+
+
+            private Gdk.RGBA contrast_color(Gdk.RGBA bg) {
+                double luminance = 0.299 * bg.red + 0.587 * bg.green + 0.114 * bg.blue;
+
+                if (luminance > 0.5) {
+                    return Gdk.RGBA(){red=0, green=0, blue=0, alpha=1.0f};
+                } else {
+                    return Gdk.RGBA(){red=1, green=1, blue=1, alpha=1.0f};
+                }
+            }
         }
 
         public class ImagePreview : Gtk.Widget {
@@ -40,14 +148,11 @@ namespace BobLauncher {
                 int width = _paintable.get_intrinsic_width();
                 int height = _paintable.get_intrinsic_height();
 
-                // Calculate scale factors for both dimensions
                 double width_scale = width > MAX_WIDTH ? (double)MAX_WIDTH / width : 1.0;
                 double height_scale = height > MAX_HEIGHT ? (double)MAX_HEIGHT / height : 1.0;
 
-                // Use the smaller scale to maintain aspect ratio
                 double scale = double.min(width_scale, height_scale);
 
-                // Round up instead of truncating
                 width = (int)Math.ceil(width * scale);
                 height = (int)Math.ceil(height * scale);
 
@@ -80,9 +185,28 @@ namespace BobLauncher {
         }
 
         private Gtk.Widget? _tooltip_widget = null;
-        public override Gtk.Widget? get_tooltip() {
+
+        public override unowned Gtk.Widget? get_tooltip() {
             if (_tooltip_widget != null) {
                 return _tooltip_widget;
+            }
+
+            // Check for hex color format
+            string trimmed_content = content.strip();
+            if ((trimmed_content.has_prefix("#") && (trimmed_content.length == 7 || trimmed_content.length == 9)) ||
+                ((trimmed_content.length == 6 || trimmed_content.length == 8) &&
+                 trimmed_content.down().chug().chomp().get_char(0).isxdigit())) {
+
+                string color_string = trimmed_content;
+                if (!color_string.has_prefix("#")) {
+                    color_string = "#" + color_string;
+                }
+
+                Gdk.RGBA rgba = Gdk.RGBA();
+                if (rgba.parse(color_string)) {
+                    _tooltip_widget = new ColorPreview(color_string);
+                    return _tooltip_widget;
+                }
             }
 
             if ("image" in content_type) {
@@ -120,7 +244,6 @@ namespace BobLauncher {
                     warning("Failed to check file type: %s", e.message);
                 }
 
-                // Check for a thumbnail
                 string thumb_path = Utils.get_thumbnail_path(content, 512);
                 if (FileUtils.test(thumb_path, FileTest.EXISTS)) {
                     try {
@@ -141,18 +264,14 @@ namespace BobLauncher {
                 use_markup = false,
                 overflow = Gtk.Overflow.HIDDEN,
                 wrap = true,
-                max_width_chars = 70,
+                xalign = 0.0f,
+                yalign = 0.0f,
+                ellipsize = Pango.EllipsizeMode.END,
+                wrap_mode = Pango.WrapMode.CHAR,
+                // natural_wrap_mode = Gtk.NaturalWrapMode.NONE,
+                // max_width_chars = 70,
             };
             return _tooltip_widget;
-        }
-
-
-        public override string get_description() {
-            return description;
-        }
-
-        public override string get_icon_name() {
-            return icon_type;
         }
 
         public ClipboardMatch(uint primkey, string? text, int64 timestamp, string content_type) {
@@ -174,7 +293,13 @@ namespace BobLauncher {
             int max_length = int.min(200, new_text.length);
             this.title = new_text.slice(0, max_length) + append_ellipsis;
             this.content = text;
-            this.description = BobLauncher.Utils.format_modification_time(now, date_time);
+
+            string time_str = BobLauncher.Utils.format_modification_time(now, date_time);
+            this.timestamp_text = time_str;
+
+            if (this.content_type.down().contains("text")) {
+                this.character_count = text.length;
+            }
         }
     }
 

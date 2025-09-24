@@ -29,6 +29,8 @@ namespace BobLauncher {
     public class PassPlugin : SearchBase {
         construct {
             icon_name = "dialog-password";
+            passwords = new GenericArray<string>();
+            monitors = new GenericArray<FileMonitor>();
         }
 
         private class PassMatch : Match, IActionMatch {
@@ -50,55 +52,40 @@ namespace BobLauncher {
                 this.password_name = password_name;
             }
 
-            public void do_action () {
-                Pid child_pid;
-                int standard_output;
-                int standard_error;
-
+            public bool do_action () {
+                string identifier = "pass";
+                string[] argv = {"pass", "-c", this.password_name};
+                bool success = BobLaunchContext.get_instance().launch_command(identifier, argv, true, false);
                 try {
-                    Process.spawn_async_with_pipes (null,
-                            {"pass", "-c", this.password_name},
-                            null, SpawnFlags.SEARCH_PATH | SpawnFlags.DO_NOT_REAP_CHILD,
-                            null, out child_pid,
-                            null, out standard_output, out standard_error
+                    string message, icon_name;
+                    if (success) {
+                        message = "Copied %s password to clipboard".printf (this.get_title());
+                        icon_name = "dialog-password";
+                    } else {
+                        message = "Unable to decrypt %s password".printf (this.get_title());
+                        icon_name = "dialog-error";
+                    }
+
+                    var notification = (Notify.Notification) Object.new (
+                            typeof (Notify.Notification),
+                            summary: "Password Manager",
+                            body: message,
+                            icon_name: icon_name,
+                            null
                     );
-                    ChildWatch.add (child_pid, (pid, status) => {
-                        Process.close_pid (pid);
-
-                        try {
-                            string message, icon_name;
-                            if (status == 0) {
-                                message = "Copied %s password to clipboard".printf (this.get_title());
-                                icon_name = "dialog-password";
-                            } else {
-                                message = "Unable to decrypt %s password".printf (this.get_title());
-                                icon_name = "dialog-error";
-                            }
-
-                            var notification = (Notify.Notification) Object.new (
-                                    typeof (Notify.Notification),
-                                    summary: "Password Manager",
-                                    body: message,
-                                    icon_name: icon_name,
-                                    null
-                            );
-                            notification.show ();
-                        }
-                        catch (Error err) {
-                            warning ("%s", err.message);
-                        }
-                    });
-                } catch (SpawnError err) {
+                    notification.show();
+                } catch (Error err) {
                     warning ("%s", err.message);
                 }
+                return success;
             }
         }
 
         private File password_store;
-        private List<string> passwords;
-        private List<FileMonitor> monitors;
+        private GenericArray<string> passwords;
+        private GenericArray<FileMonitor> monitors;
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             password_store = File.new_for_path (
                 "%s/.password-store".printf (Environment.get_home_dir ())
             );
@@ -106,29 +93,29 @@ namespace BobLauncher {
             return true;
         }
 
-        protected override void deactivate() {
-        }
+        public override void deactivate() { }
 
         private void update_passwords () {
             foreach (unowned FileMonitor monitor in monitors) {
-                monitor.cancel ();
+                monitor.cancel();
             }
             monitors = null;
 
             try {
-                monitors = activate_monitors (password_store);
+                monitors = activate_monitors(password_store);
             } catch (Error err) {
                 warning ("Unable to monitor password directory: %s", err.message);
             }
             try {
-                passwords = list_passwords (password_store, password_store);
+                passwords = list_passwords(password_store, password_store);
+                passwords.sort(strcmp);
             } catch (Error err) {
                 warning ("Unable to list passwords: %s", err.message);
             }
         }
 
-        private List<FileMonitor> activate_monitors (File directory) throws Error {
-            List<FileMonitor> result = new List<FileMonitor> ();
+        private GenericArray<FileMonitor> activate_monitors(File directory) throws Error {
+            GenericArray<FileMonitor> result = new GenericArray<FileMonitor> ();
 
             FileEnumerator enumerator = directory.enumerate_children (
                 FileAttribute.STANDARD_NAME + "," +
@@ -144,7 +131,7 @@ namespace BobLauncher {
                 message ("Detected a change (%s) in password store. Reloading", event.to_string ());
                 update_passwords ();
             });
-            result.append (monitor);
+            result.add(monitor);
 
             FileInfo? info = null;
             while ((info = enumerator.next_file (null)) != null) {
@@ -152,15 +139,15 @@ namespace BobLauncher {
 
                 File target_file = directory.get_child (info.get_name ());
                 if (info.get_file_type () == FileType.DIRECTORY) {
-                    result.concat (activate_monitors (target_file));
+                    result.extend_and_steal(activate_monitors(target_file));
                 }
             }
 
             return result;
         }
 
-        private List<string> list_passwords (File root, File directory) throws Error {
-            List<string> result = new List<string>();
+        private GenericArray<string> list_passwords (File root, File directory) throws Error {
+            GenericArray<string> result = new GenericArray<string>();
 
             FileEnumerator enumerator = directory.enumerate_children (
                 FileAttribute.STANDARD_NAME + "," +
@@ -174,11 +161,11 @@ namespace BobLauncher {
             while ((info = enumerator.next_file (null)) != null) {
                 File target_file = directory.get_child (info.get_name ());
                 if (info.get_file_type () == FileType.DIRECTORY) {
-                    result.concat (list_passwords (root, target_file));
+                    result.extend_and_steal(list_passwords (root, target_file));
                 }
                 else if (info.get_content_type () == "application/pgp-encrypted") {
                     var path = root.get_relative_path (target_file);
-                    result.prepend (path.replace (".gpg", ""));
+                    result.insert (0, path.replace (".gpg", ""));
                 }
             }
             return result;
@@ -188,7 +175,7 @@ namespace BobLauncher {
             foreach (unowned string password in passwords) {
                 if (rs.has_match(password)) {
                     var score = rs.match_score(password);
-                    rs.add_lazy_unique(score + bonus, () => { return new PassMatch(password); });
+                    rs.add_lazy_unique(score, () => { return new PassMatch(password); });
                 }
             }
         }

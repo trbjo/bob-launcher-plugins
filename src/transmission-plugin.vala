@@ -132,7 +132,7 @@ namespace BobLauncher {
         }
     }
 
-    public class TransmissionPlugin : SearchAction {
+    public class TransmissionPlugin : SearchBase {
         protected override void search_shard(ResultContainer rs, uint shard_id) {
             if (clients[shard_id].is_connected()) {
                 fetch_transmission_data(rs, clients[shard_id]);
@@ -166,7 +166,7 @@ namespace BobLauncher {
         private GenericArray<Action> actions;
 
         construct {
-            icon_name = "application-x-bittorrent";
+            icon_name = "transmission";
             clients = new GenericArray<TransmissionClient>();
             actions = new GenericArray<Action>();
 
@@ -174,7 +174,7 @@ namespace BobLauncher {
             actions.add(new PauseTorrentAction());
             actions.add(new DeleteTorrentAction());
         }
-        public override void on_setting_initialized(string key, GLib.Variant value) {
+        public override void on_setting_changed(string key, GLib.Variant value) {
                 remote_urls = value.get_strv();
                 for (int i = 0; i < remote_urls.length; i++) {
                     debug("Transmission remote url: %s", remote_urls[i]);
@@ -187,30 +187,20 @@ namespace BobLauncher {
 
         }
 
-        public override SettingsCallback? on_setting_changed(string key, GLib.Variant value) {
-            if (key != "remote-urls") {
-                return null;
-            }
-
-            return (cancellable) => {
-                on_setting_initialized(key, value);
-            };
-        }
-
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             return true;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             clients = new GenericArray<TransmissionClient>();
         }
 
-        private bool fetch_transmission_data(ResultContainer rs, TransmissionClient client) {
-            var payload = """{"arguments":{"fields":["id","addedDate","file-count","name","primary-mime-type","totalSize","error","errorString","eta","isFinished","isStalled","labels","leftUntilDone","metadataPercentComplete","peersConnected","peersGettingFromUs","peersSendingToUs","percentDone","queuePosition","rateDownload","rateUpload","recheckProgress","seedRatioMode","sizeWhenDone","status","downloadDir","uploadRatio"]},"method":"torrent-get"}""";
+        const string PAYLOAD = """{"arguments":{"fields":["id","addedDate","file-count","name","primary-mime-type","totalSize","error","errorString","eta","isFinished","isStalled","labels","leftUntilDone","metadataPercentComplete","peersConnected","peersGettingFromUs","peersSendingToUs","percentDone","queuePosition","rateDownload","rateUpload","recheckProgress","seedRatioMode","sizeWhenDone","status","downloadDir","uploadRatio"]},"method":"torrent-get"}""";
 
-            var reply = client.send_torrent_command(payload, null);
+        private void fetch_transmission_data(ResultContainer rs, TransmissionClient client) {
+            var reply = client.send_torrent_command(PAYLOAD, null);
             if (reply == null) {
-                return false;
+                return;
             }
 
             try {
@@ -223,23 +213,14 @@ namespace BobLauncher {
                 if (arguments_object != null && arguments_object.has_member("torrents")) {
                     var torrents_array = arguments_object.get_array_member("torrents");
 
-                    unowned string needle = rs.get_query();
                     foreach (var torrent_element in torrents_array.get_elements()) {
-                        if (rs.is_cancelled()) return false;
                         var torrent_object = torrent_element.get_object();
                         var title = torrent_object.get_string_member("name");
-                        if (rs.has_match(title)) {
-                            var score = rs.match_score(title);
-                            rs.add_lazy_unique(score + bonus, () => {
-                                return new TransmissionDownload(torrent_object, client);
-                            });
-                        }
+                        var score = rs.match_score(title);
+                        rs.add_lazy_unique(score, () => new TransmissionDownload(torrent_object, client));
                     }
                 }
-            } catch (GLib.Error e) {
-                return false;
-            }
-            return true;
+            } catch (GLib.Error e) { }
         }
 
 
@@ -272,9 +253,25 @@ namespace BobLauncher {
 
             public TransmissionDownload(Json.Object torrent_object, TransmissionClient client) {
                 int64 _left_until_done = torrent_object.get_int_member("leftUntilDone");
-                int64 _size_when_done =  torrent_object.get_int_member("sizeWhenDone");
+                int64 _size_when_done = torrent_object.get_int_member("sizeWhenDone");
+                double _metadata_percent = torrent_object.get_double_member("metadataPercentComplete");
 
-                double _progress = _size_when_done == 0 ? 1.0 : (double)(_size_when_done - _left_until_done) / _size_when_done;
+                double _progress;
+                string progress_text;
+
+                bool is_retrieving_metadata = (_size_when_done == 0 && _metadata_percent < 1.0);
+
+                if (is_retrieving_metadata) {
+                    _progress = 0.0;
+                    progress_text = "Metadata: %.1f%%".printf(_metadata_percent * 100);
+                } else if (_size_when_done == 0) {
+                    _progress = 0.0;
+                    progress_text = "Waiting...";
+                } else {
+                    _progress = (double)(_size_when_done - _left_until_done) / _size_when_done;
+                    progress_text = "%.2f%%".printf(_progress * 100);
+                }
+
                 int64 _eta = torrent_object.get_int_member("eta");
                 int64 _download_speed = torrent_object.get_int_member("rateDownload");
                 int64 _upload_speed = torrent_object.get_int_member("rateUpload");
@@ -282,10 +279,14 @@ namespace BobLauncher {
 
                 TorrentStatus _status = (TorrentStatus)torrent_object.get_int_member("status");
 
-                string _description = "%s%s | %.2f%% | %s ↓ %s ↑ | %s | Ratio: %.2f".printf(
+                string status_display = is_retrieving_metadata ?
+                    "Retrieving metadata" :
+                    _status.to_string();
+
+                string _description = "%s%s | %s | %s ↓ %s ↑ | %s | Ratio: %.2f".printf(
                     TransmissionPlugin.get_remote_identifier(client.base_url),
-                     _status.to_string(),
-                    _progress * 100,
+                    status_display,
+                    progress_text,
                     format_speed(_download_speed),
                     format_speed(_upload_speed),
                     format_eta(_eta),
@@ -293,9 +294,6 @@ namespace BobLauncher {
                 );
 
                 Object(
-                    // hash: torrent_object.get_string_member("name").hash(),
-
-                    // specific to torrent matches
                     size_when_done: _size_when_done,
                     id: torrent_object.get_int_member("id"),
                     status: _status,
@@ -309,9 +307,7 @@ namespace BobLauncher {
                     client: client
                 );
                 this.torrent_object = torrent_object;
-
                 this.description = _description;
-                // message(torrent_object.get_string_member("primary-mime-type"), torrent_object.get_string_member("name"));
             }
 
 

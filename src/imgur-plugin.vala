@@ -18,7 +18,7 @@ namespace BobLauncher {
         public string client_id { get; set; default = ""; }
         private ImgUrAction action;
 
-        public override void on_setting_initialized(string key, GLib.Variant value) {
+        public override void on_setting_changed(string key, GLib.Variant value) {
             if (key == "client-id") {
                 client_id = value.get_string();
                 if (action != null)  {
@@ -27,24 +27,12 @@ namespace BobLauncher {
             }
         }
 
-        public override SettingsCallback? on_setting_changed(string key, GLib.Variant value) {
-            if (key == "client-id") {
-                return (cancellable) => {
-                    client_id = value.get_string();
-                    if (action != null)  {
-                        action.update_client_id(client_id);
-                    }
-                };
-            }
-            return null;
-        }
-
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             action = new ImgUrAction(client_id);
             return true;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             action = null;
         }
 

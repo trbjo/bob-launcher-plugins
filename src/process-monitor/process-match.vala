@@ -1,15 +1,23 @@
 using ProcessUtils;
 
 namespace BobLauncher {
-    public class ProcessMatch : Match {
-        private string title;
+    public class ProcessMatch : Match, IRichDescription {
+        public uint pid { get; construct; }
+        public string name { get; construct; }
+        public string user { get; construct; }
+        public ProcessState state { get; construct; }
+        public double cpu_usage { get; construct; }
+        public uint64 memory_usage { get; construct; }
+        public string command { get; construct; }
+
+        private Description? _cached_description = null;
+
         public override string get_title() {
-            return title;
+            return @"$pid: $name | ($command)";
         }
 
-        private string description;
         public override string get_description() {
-            return this.description;
+            assert_not_reached();
         }
 
         public override string get_icon_name() {
@@ -20,18 +28,56 @@ namespace BobLauncher {
             return "text/plain";
         }
 
+        public unowned Description get_rich_description(Levensteihn.StringInfo si) {
+            if (_cached_description == null) {
+                _cached_description = build_rich_description();
+            }
+            return _cached_description;
+        }
 
-        public uint pid { get; set; }
-        public string name { get; set; }
-        public string user { get; set; }
-        public ProcessState state { get; set; }
-        public double cpu_usage { get; set; }
-        public uint64 memory_usage { get; set; }
-        public string command { get; set; }
+        private Description build_rich_description() {
+            var root = new Description.container("process-description");
+
+
+            var state_container = new Description.container("state-container", Gtk.Orientation.HORIZONTAL);
+            state_container.add_child(new Description("emblem-system-symbolic", "state-icon", FragmentType.IMAGE));
+            state_container.add_child(new Description(state.to_string(), get_state_css_class()));
+            root.add_child(state_container);
+
+            var cpu_container = new Description.container("cpu-container", Gtk.Orientation.HORIZONTAL);
+            cpu_container.add_child(new Description("computer-symbolic", "cpu-icon", FragmentType.IMAGE));
+            cpu_container.add_child(new Description("%.1f%%".printf(cpu_usage), "cpu-text"));
+            root.add_child(cpu_container);
+
+            var memory_container = new Description.container("memory-container", Gtk.Orientation.HORIZONTAL);
+            memory_container.add_child(new Description("drive-harddisk-system-symbolic", "memory-icon", FragmentType.IMAGE));
+            memory_container.add_child(new Description(format_size(memory_usage), "memory-text"));
+            root.add_child(memory_container);
+
+            var user_container = new Description.container("user-container", Gtk.Orientation.HORIZONTAL);
+            user_container.add_child(new Description("avatar-default-symbolic", "user-icon", FragmentType.IMAGE));
+            user_container.add_child(new Description(user, "user-text"));
+            root.add_child(user_container);
+
+            return root;
+        }
+
+        private string get_state_css_class() {
+            switch (state) {
+                case ProcessState.RUNNING:
+                    return "state-running";
+                case ProcessState.SLEEPING:
+                    return "state-sleeping";
+                case ProcessState.STOPPED:
+                    return "state-stopped";
+                case ProcessState.ZOMBIE:
+                    return "state-zombie";
+                default:
+                    return "state-unknown";
+            }
+        }
 
         public ProcessMatch(
-            string title,
-            string description,
             uint pid,
             string name,
             string user,
@@ -49,8 +95,6 @@ namespace BobLauncher {
                 memory_usage: memory_usage,
                 command: command
             );
-            this.title = title;
-            this.description = description;
         }
     }
 

@@ -244,6 +244,43 @@ bool ht_remove(HashTable* ht, uint32_t key) {
     return true;
 }
 
+bool ht_remove_shift(HashTable* ht, uint32_t key) {
+    if (!ht || key == 0) return false;
+
+    ht_lock(ht);
+
+    size_t slot = find_slot(ht->hash_to_idx, ht->capacity, key, ht->array);
+    if (ht->hash_to_idx[slot] == 0) {
+        ht_unlock(ht);
+        return false;
+    }
+
+    size_t idx = ht->hash_to_idx[slot] - 1;
+
+    // Free memory for the entry being removed
+    free(ht->array[idx].text);
+    free(ht->array[idx].content_type);
+
+    // Shift all subsequent entries up one position
+    memmove(&ht->array[idx], &ht->array[idx + 1],
+            (ht->size - idx - 1) * sizeof(ClipboardEntry));
+
+    // Update hash indices for shifted entries
+    for (size_t i = idx; i < ht->size - 1; i++) {
+        size_t entry_slot = ht->idx_to_hash_slot[i + 1];
+        ht->hash_to_idx[entry_slot] = i + 1;
+        ht->idx_to_hash_slot[i] = entry_slot;
+    }
+
+    // Clear the hash table slot for the removed key
+    ht->hash_to_idx[slot] = 0;
+    ht->size--;
+
+    ht_unlock(ht);
+    return true;
+}
+
+
 const ClipboardEntry* ht_lookup(HashTable* ht, uint32_t key) {
     if (!ht || key == 0) return NULL;
 

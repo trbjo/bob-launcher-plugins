@@ -3,7 +3,6 @@ public Type plugin_init(TypeModule type_module) {
     return typeof(BobLauncher.CommandPlugin);
 }
 
-
 namespace BobLauncher {
     [Flags]
     public enum ExecProperty {
@@ -87,21 +86,8 @@ namespace BobLauncher {
             return _file;
         }
 
-        public void do_action() {
-            try {
-                Pid child_pid;
-                Process.spawn_async_with_pipes(
-                    null,           // working directory
-                    full_cmd,       // command
-                    ENVIRONMENT,    // environment
-                    SpawnFlags.SEARCH_PATH,  // flags
-                    null,          // child setup
-                    out child_pid  // child pid
-                );
-                // Function returns here while program continues running
-            } catch (Error e) {
-                warning(e.message);
-            }
+        public bool do_action() {
+            return BobLaunchContext.get_instance().launch_command(this.command, full_cmd, true, false);
         }
 
         public string get_uri() {
@@ -150,10 +136,10 @@ namespace BobLauncher {
                 warning("cmd: %s could not be created", cmd);
             }
 
-            this.command= cmd;
-            this.full_cmd= cmd_parts;
-            this.filename= full_path;
-            this.is_historical= is_historical;
+            this.command = cmd;
+            this.full_cmd = cmd_parts;
+            this.filename = full_path;
+            this.is_historical = is_historical;
             this.props = props;
             executed.connect(plg.command_executed);
         }
@@ -176,20 +162,31 @@ namespace BobLauncher {
     }
 
     private class CommandShard {
-        private Mutex shard_mutex;
+        private void spinlock() {
+            while (Threading.atomic_exchange(ref lock_token, 1) == 1) {
+                Threading.pause();
+            }
+        }
+
+        private void spinunlock() {
+            Threading.atomic_store(ref lock_token, 0);
+        }
+
+        private int lock_token;
+
+
         private GLib.HashTable<string, ExecProperty> command_map;
         private GLib.HashTable<string, string>? overflow_paths;
         internal unowned CommandPlugin plg;
 
         public CommandShard(CommandPlugin plg) {
-            shard_mutex = Mutex();
             this.plg = plg;
             command_map = new GLib.HashTable<string, ExecProperty>(str_hash, str_equal);
             overflow_paths = null;
         }
 
         public void add_command(string dir, string cmd_name, ExecProperty props, uint path_index) {
-            shard_mutex.lock();
+            spinlock();
             var cmd_props = ExecProperty.create_with_path_index(props, path_index);
 
             if (PATH_OVERFLOW in cmd_props) {
@@ -200,25 +197,16 @@ namespace BobLauncher {
             }
 
             command_map[cmd_name] = cmd_props;
-            shard_mutex.unlock();
+            spinunlock();
         }
 
         public void remove_command(string cmd_name) {
-            shard_mutex.lock();
+            spinlock();
             if (overflow_paths != null) {
                 overflow_paths.remove(cmd_name);
             }
             command_map.remove(cmd_name);
-            shard_mutex.unlock();
-        }
-
-        public uint size {
-            get {
-                shard_mutex.lock();
-                var result = command_map.size();
-                shard_mutex.unlock();
-                return result;
-            }
+            spinunlock();
         }
 
         public void sharder(CommandPlugin plg, ResultContainer rs, string[] path_dirs) {
@@ -230,14 +218,14 @@ namespace BobLauncher {
             string input_args = input_parts.length > 1 ? needle.substring(input_parts[0].length).strip() : "";
             bool require_exact = base_needle.char_count() < 3;
 
-            shard_mutex.lock();
+            spinlock();
             try {
                 command_map.foreach((cmd_name, props) => {
                     if (require_exact && cmd_name != base_needle) {
                         return;
                     }
-                    double score = Levensteihn.match_score(si, cmd_name);
-                    if (score <= 0.0) {
+                    int16 score = Levensteihn.match_score(si, cmd_name);
+                    if (score <= 0) {
                         return;
                     }
 
@@ -255,25 +243,22 @@ namespace BobLauncher {
                     string argstring = input_args == "" ? cmd_name : cmd_name + " " + input_args;
 
                     uint cmd_hash = ((full_path.hash() << 3) ^ (argstring.hash() >> 3));
-                    rs.add_lazy(cmd_hash, score + plg.bonus, () => new CommandMatch(plg, full_path, argstring, false, props));
+                    rs.add_lazy(cmd_hash, score, () => new CommandMatch(plg, full_path, argstring, false, props));
                 });
             } finally {
-                shard_mutex.unlock();
+                spinunlock();
+
             }
         }
     }
 
     private class CommandShardManager {
         private CommandShard[] shards;
-        private Mutex manager_mutex;
-        private Cond sync_cond;
         public uint num_shards { get; private set; }
         private string[] path_dirs;
 
         public CommandShardManager(int num_shards, CommandPlugin plg) {
             this.num_shards = num_shards;
-            manager_mutex = Mutex();
-            sync_cond = Cond();
 
             shards = new CommandShard[num_shards];
             for (int i = 0; i < num_shards; i++) {
@@ -317,24 +302,12 @@ namespace BobLauncher {
             shards[shard_index].remove_command(cmd_name);
         }
 
-        public uint total_size {
-            get {
-                manager_mutex.lock();
-                uint total = 0;
-                for (int i = 0; i < num_shards; i++) {
-                    total += shards[i].size;
-                }
-                manager_mutex.unlock();
-                return total;
-            }
-        }
-
         public void tree_manager_shard(CommandPlugin plg, ResultContainer rs, uint shard_id) {
             shards[shard_id].sharder(plg, rs, path_dirs);
         }
     }
 
-    public class CommandPlugin : SearchAction {
+    public class CommandPlugin : SearchBase {
         private const bool HISTORICAL = true;
         private const bool NON_HISTORICAL = false;
 
@@ -349,10 +322,9 @@ namespace BobLauncher {
             command_manager = new CommandShardManager(7, this);
             actions = new GenericArray<BobLauncher.Action>();
             actions.add(new ForgetCommandAction(this));
-            mu = Mutex();
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             past_commands = new GenericSet<string>(str_hash, str_equal);
 
             db = DatabaseUtils.open_database(this);
@@ -367,7 +339,7 @@ namespace BobLauncher {
             return true;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             if (db != null) {
                 DatabaseUtils.cleanup(db);
                 db = null;
@@ -501,19 +473,16 @@ namespace BobLauncher {
             }
         }
 
-        private Mutex mu;
-
-        internal void command_executed(Match match) {
+        internal void command_executed(Match match, bool success) {
+            if (!success) return;
             unowned CommandMatch? co = match as CommandMatch;
             if (co == null) return;
             string command = co.command.strip();
-            mu.lock();
             past_commands.add(command);
 
             var db = DatabaseUtils.open_database(this);
             save_command_to_database(db, command);
             DatabaseUtils.cleanup(db);
-            mu.unlock();
         }
 
         private void save_command_to_database(Sqlite.Database db, string command) {
@@ -583,7 +552,7 @@ namespace BobLauncher {
 
                 string history_cmd_dup = history_cmd.dup();
 
-                rs.add_lazy(cmd_hash, score + bonus, () => new CommandMatch(this, base_cmd, history_cmd_dup, true, 0));
+                rs.add_lazy(cmd_hash, score, () => new CommandMatch(this, base_cmd, history_cmd_dup, true, 0));
             }
         }
 

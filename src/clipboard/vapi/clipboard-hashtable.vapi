@@ -15,6 +15,9 @@ namespace ClipboardHash {
         [CCode (cname = "ht_remove")]
         public bool remove(uint32 key);
 
+        [CCode (cname = "ht_remove_shift")]
+        public bool remove_shift(uint32 key);
+
         [CCode (cname = "ht_lookup")]
         public unowned Entry? lookup(uint32 key);
 

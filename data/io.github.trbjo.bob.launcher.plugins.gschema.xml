@@ -45,15 +45,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.api-bay.settings" path="/io/github/trbjo/bob/launcher/plugins/api-bay/settings/">
-    <key name="char-threshold" type="u">
-      <default>3</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>"...+"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -84,15 +83,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.desktop-file.settings" path="/io/github/trbjo/bob/launcher/plugins/desktop-file/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -118,15 +116,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.pass.settings" path="/io/github/trbjo/bob/launcher/plugins/pass/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -152,15 +149,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.mpris.settings" path="/io/github/trbjo/bob/launcher/plugins/mpris/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -186,15 +182,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.calculator.settings" path="/io/github/trbjo/bob/launcher/plugins/calculator/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -220,15 +215,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.selection.settings" path="/io/github/trbjo/bob/launcher/plugins/selection/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -254,15 +248,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.command.settings" path="/io/github/trbjo/bob/launcher/plugins/command/settings/">
-    <key name="char-threshold" type="u">
-      <default>2</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>"..+"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -296,15 +289,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.ssh.settings" path="/io/github/trbjo/bob/launcher/plugins/ssh/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -330,15 +322,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.downloads.settings" path="/io/github/trbjo/bob/launcher/plugins/downloads/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -364,15 +355,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.tracker-search.settings" path="/io/github/trbjo/bob/launcher/plugins/tracker-search/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -398,15 +388,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.chromium.settings" path="/io/github/trbjo/bob/launcher/plugins/chromium/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -432,15 +421,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.firefox-history.settings" path="/io/github/trbjo/bob/launcher/plugins/firefox-history/settings/">
-    <key name="char-threshold" type="u">
-      <default>3</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>"...+"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -466,15 +454,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.clipboard-manager.settings" path="/io/github/trbjo/bob/launcher/plugins/clipboard-manager/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -488,6 +475,19 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+    <key name="max-recent-entries" type="i">
+      <default>15</default>
+      <summary>Max recent clipboard entries</summary>
+    </key>
+
+    <key name="content-ignore-regex" type="s">
+      <default>"^.{0,3}$"</default>
+      <summary>Clipboard content whose strings matching this regex for the top mime will not be saved into the clipboard</summary>
+    </key>
+    <key name="mimetype-ignore-list" type="as">
+      <default>["text/sensitive"]</default>
+      <summary>Clipboard mimetypes being prefixed with any of the strings in this list will not be saved into the clipboard</summary>
+    </key>
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.transmission" path="/io/github/trbjo/bob/launcher/plugins/transmission/">
@@ -500,15 +500,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.transmission.settings" path="/io/github/trbjo/bob/launcher/plugins/transmission/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -539,15 +538,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks.settings" path="/io/github/trbjo/bob/launcher/plugins/gnome-bookmarks/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -573,15 +571,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.process-monitor.settings" path="/io/github/trbjo/bob/launcher/plugins/process-monitor/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -612,15 +609,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.recently-used.settings" path="/io/github/trbjo/bob/launcher/plugins/recently-used/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -646,15 +642,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.systemd-service.settings" path="/io/github/trbjo/bob/launcher/plugins/systemd-service/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -693,9 +688,9 @@
       <description>Register an account on imgur and put it here to use this plugin</description>
       <default>''</default>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -719,15 +714,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.file-search.settings" path="/io/github/trbjo/bob/launcher/plugins/file-search/settings/">
-    <key name="char-threshold" type="u">
-      <default>1</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".+"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>
@@ -766,15 +760,14 @@
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.wifi.settings" path="/io/github/trbjo/bob/launcher/plugins/wifi/settings/">
-    <key name="char-threshold" type="u">
-      <default>0</default>
-      <range min="0" max="10"/>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
       <summary>Character Threshold</summary>
       <description>How many characters should be typed before the plugin starts searching.</description>
     </key>
-    <key name="bonus" type="d">
-      <default>0.0</default>
-      <range min="-10.0" max="10.0"/>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
     </key>

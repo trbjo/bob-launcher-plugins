@@ -5,19 +5,20 @@ public Type plugin_init(TypeModule type_module) {
 
 namespace BobLauncher {
     public class RecentlyUsedPlugin : SearchBase {
+        public override bool prefer_insertion_order { get { return true; } }
         private const string RECENT_XML_NAME = "recently-used.xbel";
         private GenericArray<FileInfo> recent_files;
-        private FileMonitor? file_monitor;
+        private INotify.Monitor? file_monitor;
         private File recent_file;
         private string self_uri;
-        private bool loading = true;
 
         construct {
             recent_files = new GenericArray<FileInfo>();
             icon_name = "document-open-recent";
+            instance = this;
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             recent_file = File.new_for_path(Path.build_filename(
                 Environment.get_home_dir(), "." + RECENT_XML_NAME, null));
 
@@ -25,46 +26,52 @@ namespace BobLauncher {
                 recent_file = File.new_for_path(Path.build_filename(
                     Environment.get_user_data_dir(), RECENT_XML_NAME, null));
             }
+
             self_uri = recent_file.get_uri();
+            string self_path = recent_file.get_path();
 
             load_recent_files();
 
-            try {
-                file_monitor = recent_file.monitor_file(FileMonitorFlags.NONE, null);
-                file_monitor.changed.connect(on_recent_file_changed);
-                return true;
-            } catch (Error e) {
-                warning("Could not set up file monitor: %s", e.message);
+            file_monitor = new INotify.Monitor(on_file_changed_static);
+            string[] paths = { self_path };
+            int result = file_monitor.add_paths(paths);
+
+            if (result < 0) {
+                stderr.printf("Error setting up file monitor for path: %s\n", self_path);
                 return false;
             }
+            return true;
+
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             if (file_monitor != null) {
-                file_monitor.cancel();
+                string[] paths = { recent_file.get_path() };
+                file_monitor.remove_paths(paths);
                 file_monitor = null;
             }
+
             recent_files = new GenericArray<FileInfo>();
         }
 
+        private static weak RecentlyUsedPlugin? instance = null;
+        private static uint timeout_id;
 
-        private void on_recent_file_changed(File file, File? other_file, FileMonitorEvent event_type) {
-            if (loading) {
-                return;
+        private static void on_file_changed_static(string path, int event_type) {
+            if (timeout_id != 0) {
+                Source.remove(timeout_id);
+                timeout_id = 0;
             }
-            switch (event_type) {
-                case FileMonitorEvent.CHANGED:
-                case FileMonitorEvent.CREATED:
-                    load_recent_files();
-                    break;
-                default:
-                    break;
-            }
+
+            timeout_id = Timeout.add(200, () => {
+                timeout_id = 0;
+                instance.load_recent_files();
+                return false;
+            });
         }
 
         private void load_recent_files() {
             recent_files = new GenericArray<FileInfo>();
-            loading = true;
 
             try {
                 uint8[] file_contents;
@@ -81,11 +88,6 @@ namespace BobLauncher {
                         add_or_update_uri(uri, bf);
                     }
                     bf.to_file(recent_file.get_path());
-                    Timeout.add(1000, () => {
-                        loading = false;
-                        return false;
-                    },
-                    GLib.Priority.DEFAULT);
                 }
             } catch (Error err) {
                 warning("Unable to parse %s: %s", recent_file.get_path(), err.message);
@@ -94,8 +96,6 @@ namespace BobLauncher {
 
         private const string SEARCH_FILE_ATTRIBUTES =
             FileAttribute.STANDARD_NAME + "," +
-            FileAttribute.TIME_ACCESS + "," +
-            FileAttribute.TIME_MODIFIED + "," +
             FileAttribute.STANDARD_DISPLAY_NAME + "," +
             FileAttribute.STANDARD_TYPE + "," +
             FileAttribute.STANDARD_CONTENT_TYPE + ",";
@@ -116,33 +116,23 @@ namespace BobLauncher {
 
                 var file_info = file.query_info(SEARCH_FILE_ATTRIBUTES, FileQueryInfoFlags.NONE, null);
 
-                // Store the URI in the FileInfo object
                 file_info.set_attribute_string("custom::uri", uri);
 
                 DateTime? timestamp = null;
 
                 try {
-                    timestamp = bf.get_modified_date_time(uri);
+                    timestamp = bf.get_visited_date_time(uri);
                 } catch (Error e) {
-                    debug("Could not get BookmarkFile modified time for %s: %s", uri, e.message);
-                }
-
-                if (timestamp == null && file_info.has_attribute(FileAttribute.TIME_ACCESS)) {
-                    timestamp = file_info.get_access_date_time();
-                }
-
-                if (timestamp == null && file_info.has_attribute(FileAttribute.TIME_MODIFIED)) {
-                    timestamp = file_info.get_modification_date_time();
+                    message("Could not get BookmarkFile visited time for %s: %s", uri, e.message);
                 }
 
                 if (timestamp == null) {
                     timestamp = new DateTime.now_utc();
-                    debug("Using current time as fallback for %s", uri);
+                    message("No timestamp in BookmarkFile for %s, using current time", uri);
                 }
 
                 file_info.set_attribute_int64("custom::timestamp", timestamp.to_unix());
 
-                // Remove existing entry if present
                 uint index;
                 bool found = recent_files.find_custom<string>(uri, (item, search_uri) => {
                     return item.get_attribute_string("custom::uri") == search_uri;
@@ -167,23 +157,25 @@ namespace BobLauncher {
 
             unowned string needle = rs.get_query();
             bool needle_empty = needle == "";
-            double sort_order = 0.0;
             foreach (var file_info in recent_files) {
                 unowned string title = file_info.get_display_name();
-                Score score = rs.match_score(title);
-
-                if (needle_empty || score > 0.0) {
-                    sort_order += 0.001;
-                    score += sort_order;
-                    string uri = file_info.get_attribute_string("custom::uri");
+                string uri = file_info.get_attribute_string("custom::uri");
+                try {
                     string filepath = GLib.Filename.from_uri(uri);
-                    rs.add_lazy(filepath.hash(), score + bonus, () => new RecentlyUsedMatch(
-                            title,
-                            uri,
-                            file_info.get_content_type()
-                        )
-                    );
-                }
+                    Score path_score = rs.match_score(filepath);
+                    if (needle_empty || path_score > 0.0) {
+                        // Extract timestamp from FileInfo
+                        int64 timestamp_unix = file_info.get_attribute_int64("custom::timestamp");
+                        DateTime? timestamp = new DateTime.from_unix_utc(timestamp_unix);
+                        rs.add_lazy(filepath.hash(), path_score, () => new RecentlyUsedMatch(
+                                title,
+                                filepath,
+                                file_info.get_content_type(),
+                                timestamp
+                            )
+                        );
+                    }
+                } catch (Error e) { }
             }
         }
 
@@ -191,13 +183,15 @@ namespace BobLauncher {
             public static string? uri_to_path(string uri) {
                 return File.new_for_uri(uri).get_path();
             }
+
             public RecentlyUsedMatch(
                 string title,
-                string uri,
-                string mime_type
+                string path,
+                string mime_type,
+                DateTime? timestamp
             ) {
-                string path = uri_to_path(uri);
                 Object (filename: path);
+                base.timestamp = timestamp;
             }
         }
     }

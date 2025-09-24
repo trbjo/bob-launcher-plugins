@@ -1,4 +1,6 @@
 #include "file-hashtable.h"
+#include <stdio.h>
+#include <string.h>
 
 static size_t next_power_of_2(size_t x) {
     x--;
@@ -12,13 +14,16 @@ static size_t next_power_of_2(size_t x) {
     return x;
 }
 
-static size_t find_slot(uint32_t* hash_to_idx, size_t capacity, uint32_t hash, const char* path, FileEntry* array) {
-    size_t mask = capacity - 1;
+static size_t find_slot(FileTable* ft, uint32_t hash) {
+    size_t mask = ft->hash_capacity - 1;
     size_t slot = hash & mask;
 
-    while (hash_to_idx[slot] != 0) {
-        size_t idx = hash_to_idx[slot] - 1;
-        if (array[idx].hash == hash && strcmp(array[idx].path, path) == 0) {
+    while (ft->hash_table[slot] != 0) {
+        uint32_t idx = ft->hash_table[slot] - 1;
+        BlobLocation* loc = &ft->locations[idx];
+        FileEntry* entry = (FileEntry*)(ft->blobs[loc->blob_idx] + loc->offset);
+
+        if (entry->hash == hash) {
             return slot;
         }
         slot = (slot + 1) & mask;
@@ -26,59 +31,73 @@ static size_t find_slot(uint32_t* hash_to_idx, size_t capacity, uint32_t hash, c
     return slot;
 }
 
-static void maybe_grow_array(FileTable* ft) {
-    if (ft->size >= ft->array_capacity) {
-        size_t new_capacity = ft->array_capacity * 2;
-        FileEntry* new_array = realloc(ft->array, new_capacity * sizeof(FileEntry));
-        size_t* new_idx_to_hash_slot = realloc(ft->idx_to_hash_slot, new_capacity * sizeof(size_t));
-
-        if (new_array && new_idx_to_hash_slot) {
-            ft->array = new_array;
-            ft->idx_to_hash_slot = new_idx_to_hash_slot;
-            ft->array_capacity = new_capacity;
-        }
-    }
-}
-
 static void resize_hash(FileTable* ft) {
-    size_t new_capacity = ft->capacity * 2;
-    uint32_t* new_hash_to_idx = calloc(new_capacity, sizeof(uint32_t));
+    size_t new_capacity = ft->hash_capacity * 2;
+    uint32_t* new_table = calloc(new_capacity, sizeof(uint32_t));
+    BlobLocation* new_locations = realloc(ft->locations, new_capacity * sizeof(BlobLocation));
 
-    if (new_hash_to_idx) {
-        for (size_t i = 0; i < ft->size; i++) {
-            uint32_t hash = ft->array[i].hash;
-            const char* path = ft->array[i].path;
-            size_t new_slot = find_slot(new_hash_to_idx, new_capacity, hash, path, ft->array);
-            new_hash_to_idx[new_slot] = i + 1;
-            ft->idx_to_hash_slot[i] = new_slot;
+    if (!new_table || !new_locations) return;
+
+    uint32_t* old_table = ft->hash_table;
+    size_t old_capacity = ft->hash_capacity;
+
+    ft->hash_table = new_table;
+    ft->locations = new_locations;
+    ft->hash_capacity = new_capacity;
+
+    // Rehash all entries
+    for (size_t i = 0; i < old_capacity; i++) {
+        if (old_table[i] != 0) {
+            BlobLocation* loc = &ft->locations[old_table[i] - 1];
+            FileEntry* entry = (FileEntry*)(ft->blobs[loc->blob_idx] + loc->offset);
+
+            size_t slot = find_slot(ft, entry->hash);
+            ft->hash_table[slot] = old_table[i];
         }
-
-        free(ft->hash_to_idx);
-        ft->hash_to_idx = new_hash_to_idx;
-        ft->capacity = new_capacity;
     }
+
+    free(old_table);
 }
 
 FileTable* ft_create(size_t initial_capacity) {
     initial_capacity = next_power_of_2(initial_capacity);
-    FileTable* ft = malloc(sizeof(FileTable));
+
+    FileTable* ft = calloc(1, sizeof(FileTable));
     if (!ft) return NULL;
 
-    ft->array = malloc(initial_capacity * sizeof(FileEntry));
-    ft->hash_to_idx = calloc(initial_capacity, sizeof(uint32_t));
-    ft->idx_to_hash_slot = malloc(initial_capacity * sizeof(size_t));
+    ft->blob_capacity = 1;
+    ft->blobs = malloc(ft->blob_capacity * sizeof(char*));
+    ft->blob_entry_counts = malloc(ft->blob_capacity * sizeof(uint16_t));
+    ft->hash_table = calloc(initial_capacity, sizeof(uint32_t));
+    ft->locations = malloc(initial_capacity * sizeof(BlobLocation));
 
-    if (!ft->array || !ft->hash_to_idx || !ft->idx_to_hash_slot) {
-        free(ft->array);
-        free(ft->hash_to_idx);
-        free(ft->idx_to_hash_slot);
+    if (!ft->blobs || !ft->blob_entry_counts || !ft->hash_table || !ft->locations) {
+        free(ft->blobs);
+        free(ft->blob_entry_counts);
+        free(ft->hash_table);
+        free(ft->locations);
         free(ft);
         return NULL;
     }
 
-    ft->capacity = initial_capacity;
-    ft->array_capacity = initial_capacity;
-    ft->size = 0;
+    ft->blobs[0] = aligned_alloc(64, BLOB_SIZE);
+    if (!ft->blobs[0]) {
+        free(ft->blobs);
+        free(ft->blob_entry_counts);
+        free(ft->hash_table);
+        free(ft->locations);
+        free(ft);
+        return NULL;
+    }
+    memset(ft->blobs[0], 0, BLOB_SIZE);
+    ft->blob_entry_counts[0] = 0;
+
+    ft->blob_count = 1;
+    ft->current_blob = 0;
+    ft->current_offset = 0;
+    ft->hash_capacity = initial_capacity;
+    ft->hash_count = 0;
+    ft->total_count = 0;
 
     return ft;
 }
@@ -86,49 +105,70 @@ FileTable* ft_create(size_t initial_capacity) {
 void ft_destroy(FileTable* ft) {
     if (!ft) return;
 
-    for (size_t i = 0; i < ft->size; i++) {
-        free(ft->array[i].path);
+    for (size_t i = 0; i < ft->blob_count; i++) {
+        free(ft->blobs[i]);
     }
 
-    free(ft->array);
-    free(ft->hash_to_idx);
-    free(ft->idx_to_hash_slot);
+    free(ft->blobs);
+    free(ft->blob_entry_counts);
+    free(ft->hash_table);
+    free(ft->locations);
     free(ft);
 }
 
 bool ft_insert(FileTable* ft, const char* path, uint32_t hash) {
     if (!ft || !path || hash == 0) return false;
 
-    if (ft->size >= ft->capacity * 0.75) {
+    size_t slot = find_slot(ft, hash);
+    if (ft->hash_table[slot] != 0) {
+        return true; // Already exists
+    }
+
+    if (ft->hash_count >= ft->hash_capacity * 0.75) {
         resize_hash(ft);
+        slot = find_slot(ft, hash);
     }
 
-    size_t slot = find_slot(ft->hash_to_idx, ft->capacity, hash, path, ft->array);
+    size_t len = strlen(path);
+    size_t entry_size = sizeof(FileEntry) + len + 1;
 
-    if (ft->hash_to_idx[slot] != 0) {
-        // Entry already exists, nothing to do
-        return true;
+    // Round up to next 4-byte boundary for alignment
+    entry_size = (entry_size + 3) & ~3;
+
+    if (ft->current_offset + entry_size > BLOB_SIZE) {
+        ft->current_blob++;
+        ft->current_offset = 0;
+
+        if (ft->current_blob >= ft->blob_capacity) {
+            ft->blob_capacity++;
+            char** new_blobs = realloc(ft->blobs, ft->blob_capacity * sizeof(char*));
+            if (!new_blobs) return false;
+            ft->blobs = new_blobs;
+        }
+
+        if (ft->current_blob >= ft->blob_count) {
+            ft->blobs[ft->current_blob] = aligned_alloc(64, BLOB_SIZE);
+            ft->blob_entry_counts = realloc(ft->blob_entry_counts, ft->blob_capacity * sizeof(uint16_t));
+            ft->blob_entry_counts[ft->current_blob] = 0;
+
+            if (!ft->blobs[ft->current_blob]) return false;
+            memset(ft->blobs[ft->current_blob], 0, BLOB_SIZE);
+            ft->blob_count++;
+        }
     }
 
-    maybe_grow_array(ft);
+    FileEntry* entry = (FileEntry*)(ft->blobs[ft->current_blob] + ft->current_offset);
+    entry->hash = hash;
+    entry->entry_size = (uint16_t)entry_size;
+    strcpy(entry->str, path);
 
-    ft->array[ft->size].hash = hash;
+    ft->locations[ft->hash_count] = (BlobLocation){ft->current_blob, ft->current_offset};
+    ft->hash_table[slot] = ft->hash_count + 1;
+    ft->hash_count++;
 
-    // Instead of strdup, manually allocate with an extra safety byte
-    size_t path_len = strlen(path);
-    ft->array[ft->size].path = malloc(path_len + 2);  // +1 for null, +1 for safety
-
-    if (!ft->array[ft->size].path) {
-        return false;
-    }
-
-    memcpy(ft->array[ft->size].path, path, path_len);
-    ft->array[ft->size].path[path_len] = '\0';       // Ensure null termination
-    ft->array[ft->size].path[path_len + 1] = '\0';   // Extra safety byte
-
-    ft->hash_to_idx[slot] = ft->size + 1;
-    ft->idx_to_hash_slot[ft->size] = slot;
-    ft->size++;
+    ft->current_offset += entry_size;
+    ft->total_count++;
+    ft->blob_entry_counts[ft->current_blob]++;
 
     return true;
 }
@@ -136,50 +176,76 @@ bool ft_insert(FileTable* ft, const char* path, uint32_t hash) {
 bool ft_remove(FileTable* ft, const char* path, uint32_t hash) {
     if (!ft || !path || hash == 0) return false;
 
-    size_t slot = find_slot(ft->hash_to_idx, ft->capacity, hash, path, ft->array);
-    if (ft->hash_to_idx[slot] == 0) {
+    size_t slot = find_slot(ft, hash);
+    if (ft->hash_table[slot] == 0) {
         return false;
     }
 
-    size_t idx = ft->hash_to_idx[slot] - 1;
+    uint32_t idx = ft->hash_table[slot] - 1;
+    BlobLocation* loc = &ft->locations[idx];
 
-    free(ft->array[idx].path);
+    FileEntry* entry = (FileEntry*)(ft->blobs[loc->blob_idx] + loc->offset);
+    uint16_t entry_size = entry->entry_size;
 
-    if (idx < ft->size - 1) {
-        // Move the last element to the removed position
-        ft->array[idx] = ft->array[ft->size - 1];
-        size_t moved_slot = ft->idx_to_hash_slot[ft->size - 1];
-        ft->hash_to_idx[moved_slot] = idx + 1;
-        ft->idx_to_hash_slot[idx] = moved_slot;
+    size_t blob_end = (loc->blob_idx == ft->current_blob) ? ft->current_offset : BLOB_SIZE;
+    size_t bytes_after = blob_end - (loc->offset + entry_size);
+
+    if (bytes_after > 0) {
+        memmove(entry, (char*)entry + entry_size, bytes_after);
     }
 
-    ft->hash_to_idx[slot] = 0;
-    ft->size--;
+    if (loc->blob_idx == ft->current_blob) {
+        ft->current_offset -= entry_size;
+    }
+
+    for (size_t i = 0; i < ft->hash_count; i++) {
+        if (ft->locations[i].blob_idx == loc->blob_idx &&
+            ft->locations[i].offset > loc->offset) {
+            ft->locations[i].offset -= entry_size;
+        }
+    }
+
+    ft->blob_entry_counts[loc->blob_idx]--;
+    ft->hash_table[slot] = 0;
+    ft->hash_count--;
+    ft->total_count--;
 
     return true;
 }
 
-const FileEntry* ft_lookup(FileTable* ft, uint32_t hash) {
-    if (!ft || hash == 0) return NULL;
+bool ft_lookup(FileTable* ft, uint32_t hash, const char* path) {
+    if (!ft || !path || hash == 0) return false;
 
-    // This is a simplified lookup by hash only
-    // For exact matching, the caller should verify the path
-    size_t mask = ft->capacity - 1;
-    size_t slot = hash & mask;
-
-    while (ft->hash_to_idx[slot] != 0) {
-        size_t idx = ft->hash_to_idx[slot] - 1;
-        if (ft->array[idx].hash == hash) {
-            return &ft->array[idx];
-        }
-        slot = (slot + 1) & mask;
-    }
-
-    return NULL;
+    size_t slot = find_slot(ft, hash);
+    return ft->hash_table[slot] != 0;
 }
 
-const FileEntry* ft_entries(FileTable* ft, size_t* length) {
-    if (!ft) return NULL;
-    if (length) *length = ft->size;
-    return ft->array;
+const char* ft_lookup_by_hash(FileTable* ft, uint32_t hash) {
+    if (!ft || hash == 0) return NULL;
+
+    size_t slot = find_slot(ft, hash);
+    if (ft->hash_table[slot] == 0) {
+        return NULL;
+    }
+
+    BlobLocation* loc = &ft->locations[ft->hash_table[slot] - 1];
+    FileEntry* entry = (FileEntry*)(ft->blobs[loc->blob_idx] + loc->offset);
+    return entry->str;
+}
+
+void ft_iterate(FileTable* ft, ft_iterator callback, void* user_data) {
+    for (size_t i = 0; i < ft->blob_count; i++) {
+        char* blob = (char*)ft->blobs[i];
+        FileEntry* entry = (FileEntry*)blob;
+
+        uint16_t remaining = ft->blob_entry_counts[i];
+        while (remaining-- > 0) {
+            callback(entry->hash, entry->str, user_data);
+            entry = (FileEntry*)((char*)entry + entry->entry_size);
+        }
+    }
+}
+
+size_t ft_size(FileTable* ft) {
+    return ft ? ft->total_count : 0;
 }

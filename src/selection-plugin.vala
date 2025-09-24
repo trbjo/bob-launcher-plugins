@@ -17,7 +17,7 @@ namespace BobLauncher {
             clipboard.changed.connect(this.on_clipboard_changed);
         }
 
-        protected override void deactivate() {
+        internal override void deactivate() {
             clipboard.changed.disconnect(this.on_clipboard_changed);
             clipboard = null;
         }

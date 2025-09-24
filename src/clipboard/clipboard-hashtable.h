@@ -28,6 +28,7 @@ HashTable* ht_create(size_t initial_capacity);
 void ht_destroy(HashTable* ht);
 bool ht_insert(HashTable* ht, uint32_t primkey, const char* text, int64_t timestamp, const char* content_type);
 bool ht_remove(HashTable* ht, uint32_t key);
+bool ht_remove_shift(HashTable* ht, uint32_t key);
 bool ht_insert_shift(HashTable* ht, uint32_t primkey, const char* text, int64_t timestamp, const char* content_type);
 const ClipboardEntry* ht_lookup(HashTable* ht, uint32_t key);
 const ClipboardEntry* ht_entries(HashTable* ht, size_t* length);

@@ -63,7 +63,7 @@ namespace BobLauncher {
         }
     }
 
-    public class WifiPlugin : SearchAction {
+    public class WifiPlugin : SearchBase {
         ObjectPath? agent_path;
 
         construct {
@@ -72,14 +72,14 @@ namespace BobLauncher {
         }
 
         private DBusObjectManager? manager = null;
-        private DBusConnection? connection = null;  // Add this field
+        private DBusConnection? connection = null;
         private WifiAgent agent;
         private uint agent_registration_id;
         private IwdAgentManager agent_manager;
         public signal string password_requested(string network_path);
         private bool initialization_done = false;
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             if (initialization_done) {
                 message("Already initialized, skipping activation");
                 return true;
@@ -122,11 +122,11 @@ namespace BobLauncher {
             }
         }
 
-        protected override void deactivate() {
-            message("deactivate");
+        public override void deactivate() {
             if (!initialization_done) {
                 return;
             }
+            message("deactivate");
 
             if (connection != null && agent_path != null) {
                 try {
@@ -213,7 +213,7 @@ namespace BobLauncher {
                             score = MatchScore.HIGHEST - MatchScore.EXCELLENT + (Score)signal_strength;
                         }
 
-                        rs.add_lazy(object_path.hash(), score + bonus, () => {
+                        rs.add_lazy(object_path.hash(), score, () => {
                             string security_type = "Unknown";
                             var type_variant = proxy.get_cached_property("Type");
                             if (type_variant != null && type_variant.is_of_type(VariantType.STRING)) {
@@ -538,7 +538,7 @@ namespace BobLauncher {
         public override void search(ResultContainer rs) {
             try {
                 while(manager == null) {
-                    activate(new Cancellable());
+                    activate();
                     if (rs.is_cancelled()) return;
                 }
                 var station = find_station();

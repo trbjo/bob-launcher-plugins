@@ -49,6 +49,7 @@ namespace BobLauncher {
     }
 
     public class DesktopFileService : Object {
+        private static unowned DesktopFileService instance;
         private static Regex exec_re;
 
         static construct {
@@ -59,16 +60,19 @@ namespace BobLauncher {
             }
         }
 
-        private GLib.HashTable<string, FileMonitor> directory_monitors;
+        // private GLib.HashTable<string, FileMonitor> directory_monitors;
         public GLib.HashTable<string, DesktopFileInfo> desktop_files { get; construct; }
         public GLib.HashTable<string, GenericArray<unowned DesktopFileInfo>> mimetype_map { get; construct; }
+        private INotify.Monitor monitor;
 
         public signal void reload_started();
         public signal void reload_done();
 
         construct {
+            instance = this;
             desktop_files = new GLib.HashTable<string, DesktopFileInfo>(str_hash, str_equal);
             mimetype_map = new GLib.HashTable<string, GenericArray<unowned DesktopFileInfo?>>(str_hash, str_equal);
+            monitor = new INotify.Monitor(desktop_file_directory_changed);
 
             load_all_desktop_files();
             load_mime_types();
@@ -80,32 +84,34 @@ namespace BobLauncher {
             string[] data_dirs = Environment.get_system_data_dirs();
             data_dirs += Environment.get_user_data_dir();
 
-            GLib.HashTable<string, File> desktop_file_dirs = new GLib.HashTable<string, File>(str_hash, str_equal);
+            string[] directory_dirs = new string[data_dirs.length];
 
+            uint counter = 0;
             foreach (unowned string data_dir in data_dirs) {
                 string dir_path = Path.build_filename(data_dir, "applications", null);
-                var directory = File.new_for_path(dir_path);
-                desktop_file_dirs.set(dir_path, directory);
-                process_directory(directory);
+                directory_dirs[counter++] = dir_path;
+                process_directory(dir_path);
             }
 
-            directory_monitors = new GLib.HashTable<string, FileMonitor>(str_hash, str_equal);
-            desktop_file_dirs.foreach((k, d) => {
-                try {
-                    FileMonitor monitor = d.monitor_directory(0, null);
-                    monitor.changed.connect(this.desktop_file_directory_changed);
-                    directory_monitors.set(k, monitor);
-                }
-                catch (Error err) {
-                    warning ("Unable to monitor directory: %s", err.message);
-                }
-            });
+            monitor.add_paths(directory_dirs);
+
+            // directory_monitors = new GLib.HashTable<string, FileMonitor>(str_hash, str_equal);
+            // desktop_file_dirs.foreach((k, d) => {
+                // try {
+                    // FileMonitor monitor = d.monitor_directory(0, null);
+                    // monitor.changed.connect(this.desktop_file_directory_changed);
+                    // directory_monitors.set(k, monitor);
+                // }
+                // catch (Error err) {
+                    // warning ("Unable to monitor directory: %s", err.message);
+                // }
+            // });
         }
 
-        private void process_directory(File directory) {
+        private void process_directory(string dir_path) {
             try {
-                string path = directory.get_path();
-                debug("Searching for desktop files in: %s", path);
+                var directory = File.new_for_path(dir_path);
+                debug("Searching for desktop files in: %s", dir_path);
                 if (!(directory.query_exists())) return;
 
                 var enumerator = directory.enumerate_children(FileAttribute.STANDARD_NAME + "," + FileAttribute.STANDARD_TYPE, 0, null);
@@ -123,9 +129,19 @@ namespace BobLauncher {
             }
         }
 
-        private void desktop_file_directory_changed() {
-            reload_started();
-            reload_desktop_files();
+        private static uint timeout_id;
+
+        private static void desktop_file_directory_changed() {
+            if (timeout_id != 0) {
+                Source.remove(timeout_id);
+            }
+
+            timeout_id = Timeout.add(100, () => {
+                timeout_id = 0;
+                instance.reload_started();
+                instance.reload_desktop_files();
+                return false;
+            });
         }
 
         private void reload_desktop_files() {
@@ -136,11 +152,17 @@ namespace BobLauncher {
         }
 
         private void load_desktop_file(File file) {
-            var keyfile = new KeyFile();
+            var file_path = file.get_path();
             var file_name = file.get_basename();
             try {
-                keyfile.load_from_file(file.get_path(), 0);
-                desktop_files[file_name] = dfi_from_keyfile(keyfile, file_name);
+                DesktopAppInfo app_info = new DesktopAppInfo.from_filename(file_path);
+
+                if (app_info == null) {
+                    debug("Unable to create AppInfo for %s", file_name);
+                    return;
+                }
+
+                desktop_files[file_name] = dfi_from_app_info(app_info, file_name, file_path);
             } catch (Error err) {
                 debug("%s", err.message);
             }
@@ -180,7 +202,6 @@ namespace BobLauncher {
 
             return desktop_files.get(default_id);
         }
-
 
         private void sort_mime_type_handlers() {
             mimetype_map.foreach((mime_type, handlers) => {
@@ -223,23 +244,11 @@ namespace BobLauncher {
             return success;
         }
 
-
-
         public GenericArray<unowned DesktopFileInfo?> get_desktop_files_for_type(string mime_type) {
             return mimetype_map[mime_type] ?? new GenericArray<unowned DesktopFileInfo?>();
         }
 
-        private static DesktopFileInfo dfi_from_keyfile(KeyFile keyfile, string file_base_name) throws GLib.Error {
-            if (keyfile.get_string (KeyFileDesktop.GROUP, KeyFileDesktop.KEY_TYPE) != KeyFileDesktop.TYPE_APPLICATION) {
-                throw new DesktopFileError.UNINTERESTING_ENTRY ("Not Application-type desktop entry");
-            }
-
-            DesktopAppInfo app_info = new DesktopAppInfo.from_keyfile(keyfile);
-
-            if (app_info == null) {
-                throw new DesktopFileError.UNINTERESTING_ENTRY ("Unable to create AppInfo for %s".printf(file_base_name));
-            }
-
+        private static DesktopFileInfo dfi_from_app_info(DesktopAppInfo app_info, string file_base_name, string file_path) throws GLib.Error {
             string name = app_info.get_name();
 
             string? exec = app_info.get_commandline();
@@ -254,40 +263,18 @@ namespace BobLauncher {
             }
             exec = exec.strip();
 
-            bool needs_terminal = false;
-            if (keyfile.has_key(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_TERMINAL)) {
-                needs_terminal = keyfile.get_boolean(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_TERMINAL);
-            }
-
-            bool is_hidden = false;
-            if (keyfile.has_key(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_HIDDEN) &&
-                keyfile.get_boolean(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_HIDDEN)) {
-                is_hidden = true;
-            }
-            if (keyfile.has_key(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_NO_DISPLAY) &&
-                keyfile.get_boolean(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_NO_DISPLAY)) {
-                is_hidden = true;
-            }
+            // Get properties from DesktopAppInfo
+            bool needs_terminal = app_info.get_boolean("Terminal");
+            bool is_hidden = app_info.get_is_hidden() || app_info.get_nodisplay();
 
             string comment = app_info.get_description() ?? "";
 
             var icon = app_info.get_icon() ?? new ThemedIcon("application-default-icon");
             string icon_name = icon.to_string();
 
-            string[] mime_types = new string[0];
-            if (keyfile.has_key(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_MIME_TYPE)) {
-                mime_types = keyfile.get_string_list(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_MIME_TYPE);
-            }
-
-            string[] actions = new string[0];
-            if (keyfile.has_key(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_ACTIONS)) {
-                actions = keyfile.get_string_list(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_ACTIONS);
-            }
-
-            string[] categories = new string[0];
-            if (keyfile.has_key(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_CATEGORIES)) {
-                categories = keyfile.get_string_list(KeyFileDesktop.GROUP, KeyFileDesktop.KEY_CATEGORIES);
-            }
+            string[] mime_types = app_info.get_string_list("MimeType") ?? new string[0];
+            string[] actions = app_info.list_actions() ?? new string[0];
+            string[] categories = app_info.get_string_list("Categories") ?? new string[0];
 
             return new DesktopFileInfo(
                                        name,

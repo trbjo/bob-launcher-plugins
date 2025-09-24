@@ -13,11 +13,10 @@ namespace Clipboard {
         private Sqlite.Statement all_items;
         private Sqlite.Statement update_timestamp_stmt;
 
-        public void update_timestamp(uint item_hash) {
-            int64 new_timestamp = GLib.get_real_time();
+        public void update_timestamp(uint item_hash, int64 timestamp) {
             update_timestamp_stmt.reset();
             update_timestamp_stmt.clear_bindings();
-            update_timestamp_stmt.bind_int64(1, new_timestamp);
+            update_timestamp_stmt.bind_int64(1, timestamp);
             update_timestamp_stmt.bind_int64(2, item_hash);
 
             if (update_timestamp_stmt.step() != Sqlite.DONE) {
@@ -25,6 +24,27 @@ namespace Clipboard {
             }
             update_timestamp_stmt.reset();
         }
+
+        public int64 get_oldest_timestamp() {
+            var stmt = DatabaseUtils.prepare_statement(db, """
+                SELECT timestamp FROM clipboard_items
+                ORDER BY timestamp ASC
+                LIMIT 1;
+            """);
+
+            if (stmt.step() == Sqlite.ROW) {
+                int64 oldest = stmt.column_int64(0);
+                stmt.reset();
+                return oldest;
+            }
+            stmt.reset();
+            return GLib.get_real_time();
+        }
+
+        public int64 calculate_timestamp_offset() {
+            return get_oldest_timestamp();
+        }
+
 
         public GLib.HashTable<Bytes, GenericArray<string>> get_content(uint item_hash) {
             var content_map = new GLib.HashTable<Bytes, GenericArray<string>>(direct_hash, direct_equal);
@@ -90,8 +110,12 @@ namespace Clipboard {
                 FOREIGN KEY (item_hash) REFERENCES clipboard_items(item_hash)
             );
             """,
-            "CREATE INDEX IF NOT EXISTS idx_timestamp ON clipboard_items (timestamp DESC)",
-            "CREATE INDEX IF NOT EXISTS idx_item_hash ON clipboard_content (item_hash)",
+            """
+            CREATE INDEX IF NOT EXISTS idx_timestamp ON clipboard_items (timestamp DESC);
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_item_hash ON clipboard_content (item_hash);
+            """,
             """
             CREATE VIRTUAL TABLE IF NOT EXISTS clipboard_fts USING fts5(
                 title,
@@ -174,13 +198,6 @@ namespace Clipboard {
                 JOIN clipboard_items ci ON clipboard_fts.rowid = ci.item_hash
                 WHERE clipboard_fts MATCH ?
                 AND ci.title GLOB ?
-                ORDER BY ci.timestamp DESC
-                LIMIT 50;
-            """);
-
-            latest_stmt = DatabaseUtils.prepare_statement(db, """
-                SELECT ci.item_hash, ci.timestamp, ci.top_mime, ci.title
-                FROM clipboard_items ci
                 ORDER BY ci.timestamp DESC
                 LIMIT 50;
             """);
@@ -297,9 +314,17 @@ namespace Clipboard {
             return true;
         }
 
-        public unowned Sqlite.Statement get_latest_stmt() {
+        public unowned Sqlite.Statement get_latest_stmt(int max_recent_entries) {
+            latest_stmt = DatabaseUtils.prepare_statement(db, """
+                SELECT ci.item_hash, ci.timestamp, ci.top_mime, ci.title
+                FROM clipboard_items ci
+                ORDER BY ci.timestamp DESC
+                LIMIT ?1;
+            """);
+            latest_stmt.bind_int(1, max_recent_entries);
             return latest_stmt;
         }
+
         public unowned Sqlite.Statement get_all_items() {
             return all_items;
         }

@@ -27,18 +27,17 @@ namespace BobLauncher {
     }
 
     public class FileSearchPlugin : SearchBase {
-        private int search_size = 0;
-        private GenericSet<DirectoryConfig> directory_configs;
-        private GenericArray<string> monitored_paths;
-        private bool is_monitoring = false;
+        private static HashTable<string, DirectoryConfig>? directory_configs;
+        private HashTable<string, bool> monitored_paths;
         private Mutex mu;
         private HashTable<string,bool> ignored_suffixes;
         private Queue<DirectoryWork?> work_queue;
         private Mutex queue_mutex;
+        private INotify.Monitor monitor;
         private Cond queue_cond;
-        private bool starting;
         private int cancelled;
-        private uint64 thread_id;
+        private ulong thread_id;
+        internal static unowned FileSearchPlugin instance;
 
         const string[] suffixes = {
             ".git",
@@ -49,8 +48,8 @@ namespace BobLauncher {
 
         construct {
             icon_name = "system-file-manager";
-            directory_configs = new GenericSet<DirectoryConfig>((a) => str_hash(a.path), compare_directory_infos);
-            monitored_paths = new GenericArray<string>();
+            monitored_paths = new HashTable<string, bool>(str_hash, str_equal);
+            monitor = new INotify.Monitor(on_file_changed);
             mu = Mutex();
             ignored_suffixes = new HashTable<string,bool>(str_hash, str_equal);
             foreach (var suffix in suffixes) {
@@ -59,8 +58,7 @@ namespace BobLauncher {
             work_queue = new Queue<DirectoryWork?>();
             queue_mutex = Mutex();
             queue_cond = Cond();
-            starting = false;
-            cancelled = 0;
+            instance = this;
         }
 
         private bool should_ignore_file(string path) {
@@ -71,126 +69,79 @@ namespace BobLauncher {
             return ignored_suffixes.contains(extension);
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
-            current_cancellable.cancelled.connect(() => {
-                queue_mutex.lock();
-                starting = false;
-                Threading.atomic_store(ref cancelled, 1);
-                queue_cond.signal();
-                queue_mutex.unlock();
-            });
+        private static int compare_dirs(DirectoryConfig? a, DirectoryConfig? b) {
+            return strcmp(b.path, a.path);
+        }
 
-            Threading.atomic_store(ref search_size, 0);
-            int num_shards = 128;
+
+        public override bool activate() {
+            int num_shards = 32;
             base.shard_count = num_shards;
-            FileTreeManager.initialize(num_shards);
+            FileTreeManager.initialize(num_shards, Environment.get_variable("HOME"));
+            // TODO: make configurable and dynamic.
 
-            starting = true;
             Threading.atomic_store(ref cancelled, 0);
+            thread_id = Threading.spawn_joinable(dispatch_work);
 
-            var iter = directory_configs.iterator();
-            unowned DirectoryConfig dc;
-            while ((dc = iter.next_value()) != null) {
+            var configs = directory_configs.get_values();
+            configs.sort(compare_dirs);
+            foreach (unowned var cfg in configs) {
                 queue_directory(
-                    File.new_for_path(dc.path),
+                    File.new_for_path(cfg.path),
                     FileMonitorEvent.CREATED,
-                    dc,
+                    cfg,
                     0,
                     new GenericArray<string>()
                 );
             }
 
-            while (starting) {
-                queue_mutex.lock();
-                while (work_queue.is_empty() && starting) {
-                    queue_cond.wait(queue_mutex);
-                }
-
-                if (!starting) {
-                    queue_mutex.unlock();
-                    break;
-                }
-
-                Threading.atomic_inc(ref search_size);
-                var work = work_queue.pop_head();
-                queue_mutex.unlock();
-
-                Threading.run(() => {
-                    process_directory(work);
-                    Threading.atomic_dec(ref search_size);
-                    if (Threading.atomic_load(ref search_size) == 0) {
-                        queue_mutex.lock();
-                        starting = false;
-                        queue_cond.signal();
-                        queue_mutex.unlock();
-                        message("Initialization done, monitoring %u files across %u shards",
-                              FileTreeManager.total_size(), base.shard_count);
-
-                        start_file_monitoring();
-
-                        thread_id = Threading.spawn_joinable(dispatch_work);
-                    }
-                });
-            }
+            start_file_monitoring();
             return true;
         }
 
         private void start_file_monitoring() {
-            if (is_monitoring || monitored_paths.length == 0)
+            if (monitored_paths.size() == 0)
                 return;
 
-            string[] paths = new string[monitored_paths.length];
-            for (int i = 0; i < monitored_paths.length; i++) {
-                paths[i] = monitored_paths[i];
-            }
-
-            if (Monitors.add_paths(paths, on_file_changed) == 0) {
-                is_monitoring = true;
-                message("File monitoring started for %d paths", monitored_paths.length);
-            } else {
+            if (monitor.add_paths(monitored_paths.get_keys_as_array()) != 0) {
                 warning("Failed to start file monitoring");
             }
         }
 
         private void stop_file_monitoring() {
-            if (!is_monitoring)
-                return;
-
-            string[] paths = new string[monitored_paths.length];
-            for (int i = 0; i < monitored_paths.length; i++) {
-                paths[i] = monitored_paths[i];
-            }
-
-            if (Monitors.remove_paths(paths) == 0) {
-                is_monitoring = false;
+            if (monitor.remove_paths(monitored_paths.get_keys_as_array()) == 0) {
                 message("File monitoring stopped");
             } else {
                 warning("Failed to stop file monitoring");
             }
         }
 
-        private void on_file_changed(string path, int event_type) {
+        private static void on_file_changed(string path, int event_type) {
+            instance.mu.lock();
+            instance._on_file_changed(path, event_type);
+            instance.mu.unlock();
+        }
 
-            FileMonitorEvent monitor_event;
-            if ((event_type & (1 << 2)) != 0) { // IN_MODIFY
-                monitor_event = FileMonitorEvent.CHANGES_DONE_HINT;
-            } else if ((event_type & (1 << 4)) != 0) { // IN_CREATE
-                monitor_event = FileMonitorEvent.CREATED;
-            } else if ((event_type & (1 << 3)) != 0) { // IN_DELETE
-                monitor_event = FileMonitorEvent.DELETED;
-            } else {
-                monitor_event = FileMonitorEvent.CHANGES_DONE_HINT;
-            }
-
-            DirectoryConfig? config = null;
-            var iter = this.directory_configs.iterator();
-            unowned DirectoryConfig dc;
-            while ((dc = iter.next_value()) != null) {
-                if (path.has_prefix(dc.path)) {
-                    config = dc;
-                    break;
+        private DirectoryConfig? find_best_dc(string path) {
+            DirectoryConfig? config = directory_configs.get(path); // exact match;
+            if (config == null) { // prefix matching
+                var configs = directory_configs.get_values();
+                configs.sort(compare_dirs);
+                foreach (unowned var cfg in configs) {
+                    if (path.has_prefix(cfg.path)) {
+                        return cfg;
+                    }
                 }
             }
+            return null;
+        }
+
+        private void _on_file_changed(string path, int event_type) {
+            FileMonitorEvent monitor_event = FileUtils.test(path, FileTest.EXISTS) ?
+                                                FileMonitorEvent.CHANGES_DONE_HINT :
+                                                FileMonitorEvent.DELETED;
+
+            DirectoryConfig? config = find_best_dc(path);
 
             if (config != null) {
                 int depth = 0;
@@ -202,7 +153,7 @@ namespace BobLauncher {
                     }
                 }
 
-                this.queue_directory(
+                instance.queue_directory(
                     File.new_for_path(path),
                     monitor_event,
                     config,
@@ -215,22 +166,17 @@ namespace BobLauncher {
 
                 if (parent != null) {
                     string parent_path = parent.get_path();
-
-                    iter = this.directory_configs.iterator();
-                    while ((dc = iter.next_value()) != null) {
-                        if (parent_path.has_prefix(dc.path)) {
-                            this.queue_directory(
-                                file,
-                                monitor_event,
-                                dc,
-                                0,
-                                new GenericArray<string>()
-                            );
-                            break;
-                        }
+                    DirectoryConfig? dc = find_best_dc(parent_path);
+                    if (dc != null) {
+                        instance.queue_directory(
+                            file,
+                            monitor_event,
+                            dc,
+                            0,
+                            new GenericArray<string>()
+                        );
                     }
                 }
-
             }
         }
 
@@ -249,7 +195,7 @@ namespace BobLauncher {
                 var work = work_queue.pop_head();
                 queue_mutex.unlock();
 
-                Threading.run(() => process_directory(work));
+                process_directory(work);
             }
         }
 
@@ -296,32 +242,36 @@ namespace BobLauncher {
             string relative_path = path.substring(base_path.length + 1);
 
             foreach (string pattern in patterns) {
-                if (pattern.has_suffix("/") && relative_path.has_prefix(pattern)) {
-                    return true;
-                } else if (GLib.PatternSpec.match_simple(pattern, relative_path)) {
+                if (pattern.has_prefix("/")) {
+                    pattern = pattern.substring(1);
+                }
+
+                if (relative_path == pattern ||
+                    relative_path.has_prefix(pattern + "/") ||
+                    (pattern.has_suffix("/") && relative_path.has_prefix(pattern)) ||
+                    GLib.PatternSpec.match_simple(pattern, relative_path)) {
                     return true;
                 }
             }
             return false;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             Threading.atomic_store(ref cancelled, 1);
             queue_mutex.lock();
-            starting = false;
             queue_cond.signal();
             queue_mutex.unlock();
+
             if (thread_id != 0) {
                 Threading.join(thread_id);
                 thread_id = 0;
             }
 
             mu.lock();
-            directory_configs = new GenericSet<DirectoryConfig>(direct_hash, compare_directory_infos);
+            directory_configs = new HashTable<string, DirectoryConfig>(str_hash, str_equal);
             stop_file_monitoring();
-            monitored_paths = new GenericArray<string>();
+            monitored_paths = new HashTable<string, bool>(str_hash, str_equal);
             mu.unlock();
-            message("deactivate file search done");
         }
 
         private void queue_directory(
@@ -365,46 +315,31 @@ namespace BobLauncher {
 
                     if (info == null) break;
 
-                    string bname = work.file.get_basename();
-                    if (!work.config.show_hidden && bname.has_prefix(".")) {
-                        break;
-                    }
-
                     var path = work.file.get_path();
                     FileTreeManager.add_file(path);
-
-                    mu.lock();
-                    if (!monitored_paths.find_with_equal_func(path, (a, b) => a == b)) {
-                        monitored_paths.add(path);
-                    }
-                    mu.unlock();
 
                     if (info.get_file_type() != FileType.DIRECTORY) {
                         break;
                     }
+
+                    mu.lock();
+                    if (monitored_paths.get(path)) {
+                        mu.unlock();
+                        return;
+                    }
+                    monitored_paths.set(path, true);
+                    mu.unlock();
+                    monitor.add_path(path);
+
 
                     var gitignore_patterns = work.gitignore_patterns.copy((item) => item);
                     if (work.config.respect_gitignore) {
                         File gitignore_file = work.file.get_child(".gitignore");
                         if (gitignore_file.query_exists()) {
                             var current_patterns = load_gitignore_patterns(gitignore_file);
-                            gitignore_patterns.extend(current_patterns, (item) => item);
+                            gitignore_patterns.extend(current_patterns, (item) => item.strip());
                         }
                     }
-
-                    /*
-                    try {
-                        var monitor = work.file.monitor(FileMonitorFlags.NONE);
-                        monitor.changed.connect((f, of, et) => {
-                            queue_directory(f, et, work.config, work.depth + 1, gitignore_patterns);
-                        });
-                        mu.lock();
-                        directory_monitors.add(monitor);
-                        mu.unlock();
-                    } catch (Error err) {
-                        message("Can't monitor new dir: %s", err.message);
-                    }
-                    */
 
                     try {
                         var enumerator = work.file.enumerate_children(FileAttribute.STANDARD_TYPE + "," + FileAttribute.STANDARD_NAME, FileQueryInfoFlags.NONE);
@@ -414,8 +349,12 @@ namespace BobLauncher {
                             var name = next_info.get_name();
                             var child = work.file.get_child(name);
 
+                            if (!work.config.show_hidden && name.has_prefix(".")) {
+                                continue;
+                            }
+
                             mu.lock();
-                            if (directory_configs.contains(new DirectoryConfig(child.get_path(), 0))) {
+                            if (directory_configs.contains(child.get_path())) {
                                 debug("already have: %s, not adding", child.get_path());
                                 mu.unlock();
                                 continue;
@@ -444,20 +383,21 @@ namespace BobLauncher {
                     var path = work.file.get_path();
                     FileTreeManager.remove_file(path);
 
-                    mu.lock();
-                    for (int i = 0; i < monitored_paths.length; i++) {
-                        if (monitored_paths[i] == path) {
-                            monitored_paths.remove_index(i);
-                            break;
-                        }
+                    for (uint i = 0; i < this.shard_count; i++) {
+                        uint shard_id = i;
+                        Threading.run(() => FileTreeManager.remove_by_prefix_shard(shard_id, path));
                     }
+
+                    mu.lock();
+                    monitored_paths.remove(path);
                     mu.unlock();
+                    monitor.remove_path(path);
                     break;
             }
         }
 
         protected override void search_shard(ResultContainer rs, uint shard_id) {
-            FileTreeManager.tree_manager_shard(rs, shard_id, this.bonus);
+            FileTreeManager.tree_manager_shard(rs, shard_id);
         }
 
         private static bool compare_directory_infos(DirectoryConfig a, DirectoryConfig b) {
@@ -480,42 +420,63 @@ namespace BobLauncher {
             return true;
         }
 
-        public override void on_setting_initialized(string key, GLib.Variant value) {
-            if (key == "directory-configs") {
+        public override void on_setting_changed(string key, GLib.Variant value) {
+            if (key != "directory-configs") return;
+            if (directory_configs == null) {
                 initialize_dir_config(value);
+            } else {
+                deactivate();
+                initialize_dir_config(value);
+                activate();
             }
-        }
-
-        public override SettingsCallback? on_setting_changed(string key, GLib.Variant value) {
-            if (key == "directory-configs") {
-                return (cancellable) => {
-                    update_dir_config(key, value, cancellable);
-                };
-            }
-            return null;
         }
 
         private void initialize_dir_config(GLib.Variant value) {
+            directory_configs = new HashTable<string, DirectoryConfig>(str_hash, str_equal);
+
             VariantIter iter = value.iterator();
             string path;
             int max_depth;
             bool show_hidden;
             bool respect_gitignore;
-            string home = Environment.get_home_dir();
 
             while (iter.next("(sibb)", out path, out max_depth, out show_hidden, out respect_gitignore)) {
-                if (path.has_prefix("$HOME")) {
-                    path = path.replace("$HOME", home);
-                }
-                directory_configs.add(new DirectoryConfig(path, max_depth, show_hidden, respect_gitignore));
+                path = expand_environment_variables(path);
+                directory_configs.set(path, new DirectoryConfig(path, max_depth, show_hidden, respect_gitignore));
             }
         }
 
-        private void update_dir_config(string key, GLib.Variant value, Cancellable current_cancellable) {
-            deactivate();
-            initialize_dir_config(value);
-            activate(current_cancellable);
+        private string expand_environment_variables(string input) {
+            string result = input;
+            int search_start = 0;
+
+            while (true) {
+                int dollar_pos = result.index_of("${", search_start);
+                if (dollar_pos == -1) {
+                    break;
+                }
+
+                int end_pos = result.index_of("}", dollar_pos);
+                if (end_pos == -1) {
+                    // Malformed variable (missing closing brace), stop processing
+                    break;
+                }
+
+                string var_name = result.substring(dollar_pos + 2, end_pos - dollar_pos - 2);
+                string? var_value = Environment.get_variable(var_name);
+
+                if (var_value != null) {
+                    result = result.substring(0, dollar_pos) + var_value + result.substring(end_pos + 1);
+                    search_start = dollar_pos + var_value.length;
+                } else {
+                    // Variable not found, skip past this occurrence to avoid infinite loop
+                    search_start = end_pos + 1;
+                }
+            }
+
+            return result;
         }
+
     }
 
     public class DirectoryConfig {

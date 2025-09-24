@@ -1,12 +1,15 @@
 using ProcessUtils;
 
 [ModuleInit]
-public Type plugin_init(TypeModule type_module) {
+public Type plugin_init() {
+
     return typeof(BobLauncher.ProcessMonitorPlugin);
 }
 
 namespace BobLauncher {
-    public class ProcessMonitorPlugin : SearchAction {
+    public class ProcessMonitorPlugin : SearchBase {
+        public override bool prefer_insertion_order { get { return true; } }
+
         private enum SortBy {
             PID,
             CPU,
@@ -20,12 +23,19 @@ namespace BobLauncher {
         private uint kthread_pid;
         private SortBy current_sort_by = SortBy.PID;
 
-        private GLib.HashTable<uint, ProcessInfo?> process_info_cache;
+        private static GLib.HashTable<uint, ProcessInfo?> process_info_cache;
 
         private struct ProcessInfo {
             public ulong last_utime;
             public ulong last_stime;
             public double last_time;
+            public string name;
+            public uint pid;
+            public string user;
+            public string state;
+            public double cpu_usage;
+            public uint64 memory_usage;
+            public string command;
         }
 
         construct {
@@ -37,7 +47,7 @@ namespace BobLauncher {
             FileAttribute.STANDARD_TYPE + "," +
             FileAttribute.STANDARD_SORT_ORDER;
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             process_info_cache = new GLib.HashTable<uint, ProcessInfo?>(direct_hash, direct_equal);
             process_actions = new List<Action>();
             process_actions.append(new TerminateProcessAction());
@@ -50,7 +60,7 @@ namespace BobLauncher {
             return true;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             process_actions = null;
             clean_process_cache();
             process_info_cache.remove_all();
@@ -64,16 +74,7 @@ namespace BobLauncher {
             kthread_pid = find_kthreadd_pid();
         }
 
-        public override void on_setting_initialized(string key, GLib.Variant value) {
-            handle_setting(key, value);
-        }
-
-
-        public override SettingsCallback? on_setting_changed(string key, GLib.Variant value) {
-            return handle_setting(key, value);
-        }
-
-        private SettingsCallback? handle_setting(string key, GLib.Variant value) {
+        public override void on_setting_changed(string key, GLib.Variant value) {
             if (key == "sort-by") {
                 string sort_by = value.get_string();
                 SortBy new_sort_by;
@@ -95,23 +96,46 @@ namespace BobLauncher {
                 }
                 current_sort_by = new_sort_by;
             }
-            return null;
         }
 
-        private Score calculate_score(uint pid_uint, string name, double cpu_usage, uint64 memory_usage) {
+        private CompareFunc<unowned ProcessInfo?> get_compare_function() {
             switch (current_sort_by) {
                 case SortBy.CPU:
-                    return (double)(cpu_usage * 100000); // Higher CPU usage gets higher priority
+                    return compare_by_cpu;
                 case SortBy.MEMORY:
-                    return (double)(memory_usage); // Higher memory usage gets higher priority
+                    return compare_by_memory;
                 case SortBy.NAME:
-                    // Alphabetical sorting - lower characters get higher priority
-                    uint name_hash = name.hash();
-                    return (double)(uint.MAX - name_hash);
+                    return compare_by_name;
                 case SortBy.PID:
                 default:
-                    return (double)(uint.MAX - pid_uint); // Lower PID gets higher priority
+                    return compare_by_pid;
             }
+        }
+
+        private static int compare_by_cpu(ProcessInfo? a, ProcessInfo? b) {
+            // Higher CPU usage first (descending)
+            if (a.cpu_usage > b.cpu_usage) return -1;
+            if (a.cpu_usage < b.cpu_usage) return 1;
+            return 0;
+        }
+
+        private static int compare_by_memory(ProcessInfo? a, ProcessInfo? b) {
+            // Higher memory usage first (descending)
+            if (a.memory_usage > b.memory_usage) return -1;
+            if (a.memory_usage < b.memory_usage) return 1;
+            return 0;
+        }
+
+        private static int compare_by_name(ProcessInfo? a, ProcessInfo? b) {
+            // Alphabetical order (ascending)
+            return strcmp(a.name, b.name);
+        }
+
+        private static int compare_by_pid(ProcessInfo? a, ProcessInfo? b) {
+            // Lower PID first (ascending)
+            if (a.pid < b.pid) return 1;
+            if (a.pid > b.pid) return -1;
+            return 0;
         }
 
         private uint find_kthreadd_pid() {
@@ -215,15 +239,49 @@ namespace BobLauncher {
                     if (int.parse(name) == 0) {
                         continue;  // Skip non-numeric directories
                     }
-                    parse_process_info(rs, name, needle);
+                    parse_process_info(name);
                 }
+
+                GLib.List<unowned ProcessInfo?> process_list;
+                if (needle == "") {
+                    process_list = process_info_cache.get_values();
+                } else {
+                    process_list = new GLib.List<unowned ProcessInfo?>();
+                    process_info_cache.foreach((pid, process_info) => {
+                        bool is_match = (
+                                // pid.has_prefix(needle) || // don't fuzzy match pids
+                                rs.has_match(process_info.name) ||
+                                rs.has_match(process_info.user) ||
+                                rs.has_match(process_info.command));
+                        if (is_match) {
+                            process_list.append(process_info);
+                        }
+                    });
+                }
+
+                process_list.sort(get_compare_function());
+
+                foreach (var process_info in process_list) {
+                    rs.add_lazy_unique(0, () => {
+                        return new ProcessMatch(
+                            process_info.pid,
+                            process_info.name,
+                            process_info.user,
+                            process_info.state,
+                            process_info.cpu_usage,
+                            process_info.memory_usage,
+                            process_info.command
+                        );
+                    });
+                }
+
             } catch (Error e) {
                 clean_process_cache();
                 warning(e.message);
             }
         }
 
-        private void parse_process_info(ResultContainer rs, string pid, string needle) {
+        private void parse_process_info(string pid) {
             uint pid_uint = uint.parse(pid);
             if (is_kernel_thread(pid_uint)) {
                 return;
@@ -284,38 +342,30 @@ namespace BobLauncher {
             int64 current_time = GLib.get_monotonic_time();
             double cpu_usage = 0;
 
+            ProcessInfo? prev_info = null;
             if (process_info_cache.contains(pid_uint)) {
-                var info = process_info_cache[pid_uint];
-                double time_delta = (current_time - info.last_time) / 1000000.0; // Convert to seconds
+                prev_info = process_info_cache.get(pid_uint);
+                double time_delta = (current_time - prev_info.last_time) / 1000000.0; // Convert to seconds
                 if (time_delta > 0) {
-                    ulong cpu_time_delta = (utime + stime) - (info.last_utime + info.last_stime);
+                    ulong cpu_time_delta = (utime + stime) - (prev_info.last_utime + prev_info.last_stime);
                     cpu_usage = 100.0 * (cpu_time_delta / clock_ticks_per_second) / time_delta;
                 }
             }
 
-            // Update cache
+            cpu_usage = Math.round(cpu_usage * 10) / 10;
+
             process_info_cache[pid_uint] = ProcessInfo() {
+                pid = pid_uint,
                 last_utime = utime,
                 last_stime = stime,
-                last_time = current_time
+                last_time = current_time,
+                name = name,
+                user = user,
+                state = state,
+                cpu_usage = cpu_usage,
+                memory_usage = memory_usage,
+                command = command,
             };
-
-
-            if (needle == "" ||
-                    pid.has_prefix(needle) || // don't fuzzy match pids
-                    rs.has_match(user) ||
-                    rs.has_match(name) ||
-                    rs.has_match(command)) {
-
-                cpu_usage = Math.round(cpu_usage * 10) / 10;
-                Score score = calculate_score(pid_uint, name, cpu_usage, memory_usage);
-
-                rs.add_lazy(pid_uint, score + bonus, () => {
-                    string title = @"$pid: $name | ($command)";
-                    string description = @"User: $user | State: $state | CPU: %.1f%% | Mem: %s".printf(cpu_usage, format_size(memory_usage));
-                    return new ProcessMatch(title, description, pid_uint, name, user, state, cpu_usage, memory_usage, command);
-                });
-            }
         }
 
         private string format_size(uint64 size) {

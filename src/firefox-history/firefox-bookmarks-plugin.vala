@@ -1,5 +1,7 @@
 [ModuleInit]
-public Type plugin_init(TypeModule type_module) {
+public Type plugin_init() {
+
+
     return typeof(BobLauncher.FirefoxHistoryPlugin);
 }
 
@@ -67,7 +69,7 @@ namespace BobLauncher {
         private Sqlite.Statement[] prepared_stmts;
         private uint num_shards;
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             num_shards = (uint)GLib.get_num_processors();
             base.shard_count = num_shards;
 
@@ -85,7 +87,7 @@ namespace BobLauncher {
             return true;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             finalize_databases();
         }
 
@@ -438,7 +440,7 @@ namespace BobLauncher {
             int counter = 0;
 
             while (prepared_stmt.step() == Sqlite.ROW) {
-                if ((counter++ % 10 == 0) && rs.is_cancelled()) return;
+                if (((counter++ & 0x3F) == 0) && rs.is_cancelled()) return;
                 string? title = prepared_stmt.column_text(0);
                 if (title == null) continue;
 
@@ -461,14 +463,25 @@ namespace BobLauncher {
                 string new_url = Strings.decode_html_chars(url);
 
                 if (new_url.has_prefix("file://")) {
-                    double url_score = rs.match_score_spaceless(new_url);
-                    rs.add_lazy(new_url.hash(), url_score + bonus, () => new FileMatch.from_uri(new_url));
-                } else {
-                    double score = rs.match_score_spaceless(title);
-                    if (score < 0) {
-                        score = rs.match_score_spaceless(title);
+                    try {
+                        string? path = Filename.from_uri(new_url, null);
+                        if (path != null && FileUtils.test(path, FileTest.EXISTS)) {
+                            Score title_score = rs.match_score(Path.get_basename(path));
+                            Score path_score = rs.match_score(path);
+
+                            Score final_score = int16.max(title_score, path_score);
+
+                            rs.add_lazy(path.hash(), final_score, () => new FileMatch.from_uri(new_url));
+                        }
+                    } catch (GLib.ConvertError e) {
+                        continue;
                     }
-                    rs.add_lazy(new_url.hash(), score + bonus, () => {
+                } else {
+                    Score score = rs.match_score_spaceless(title);
+                    if (score < 0) {
+                        continue;
+                    }
+                    rs.add_lazy(new_url.hash(), score, () => {
                         FirefoxItemType item_type = (source == "bookmark") ?
                                             FirefoxItemType.BOOKMARK : FirefoxItemType.HISTORY;
                         return new HistoryMatch(title, new_url, item_type, formatted_date);

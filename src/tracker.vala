@@ -24,7 +24,7 @@ namespace BobLauncher {
         private Tsparql.SparqlConnection? connection;
         private Tsparql.SparqlStatement? case_insensitive_stmt;
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             try {
                 debug("TrackerSearchPlugin: Connecting to Tracker SPARQL endpoint...");
                 connection = Tsparql.SparqlConnection.bus_new("org.freedesktop.Tracker3.Miner.Files", null, null);
@@ -44,7 +44,7 @@ namespace BobLauncher {
             }
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             if (connection != null) {
                 connection.close();
                 connection = null;
@@ -53,6 +53,10 @@ namespace BobLauncher {
 
         public override void search(ResultContainer rs) {
             spinlock();
+            if (rs.is_cancelled()) {
+                spinunlock();
+                return;
+            }
             case_insensitive_stmt.bind_string("query", rs.get_query());
 
             Tsparql.SparqlCursor cursor;
@@ -68,13 +72,20 @@ namespace BobLauncher {
             int counter = 0;
             try {
                 while (cursor.next(null)) {
-                    if ((counter++ % 2 == 0) && rs.is_cancelled()) return;
+                    if ((((counter++) & 0x7) == 0) && rs.is_cancelled()) return;
 
                     string uri = cursor.get_string(0);
                     try {
-                        string path = GLib.Filename.from_uri(uri);
-                        double score = cursor.get_double(1);
-                        rs.add_lazy(path.hash(), score + bonus, () => new FileMatch.from_path(path));
+                        string? path = GLib.Filename.from_uri(uri);
+                        if (path != null && FileUtils.test(path, FileTest.EXISTS)) {
+                            Score score = (int16)(400.0 * cursor.get_double(1));
+                            string basename = GLib.Path.get_basename (path);
+
+                            Score path_score = rs.match_score(path);
+                            Score title_score = rs.match_score(basename);
+                            Score final_score = int16.max(int16.max(score, path_score), title_score);
+                            rs.add_lazy(path.hash(), final_score, () => new FileMatch.from_path(path));
+                        }
                     } catch (Error e) {
                         warning("could not resolve uri: %s, error: %s", uri, e.message);
                         continue;

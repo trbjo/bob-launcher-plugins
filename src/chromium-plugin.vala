@@ -30,7 +30,7 @@ namespace BobLauncher {
             icon_name = "chromium";
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             bookmarks_once = new GenericArray<BookmarkMatch>();
             var parser = new Json.Parser();
             string fpath = GLib.Path.build_filename (
@@ -76,7 +76,7 @@ namespace BobLauncher {
         }
 
 
-        protected override void deactivate() {
+        public override void deactivate() {
             bookmarks_once = null;
         }
 
@@ -122,10 +122,10 @@ namespace BobLauncher {
                 unowned string url = bmk.get_uri_folded();
                 if (rs.has_match(name)) {
                     var score = rs.match_score(name);
-                    rs.add_lazy(bmk.uri.hash(), score + bonus, () => { return bmk; });
+                    rs.add_lazy(bmk.uri.hash(), score, () => { return bmk; });
                 } else if (rs.has_match(url)) {
                     var score = rs.match_score(url);
-                    rs.add_lazy(bmk.uri.hash(), score + bonus, () => { return bmk; });
+                    rs.add_lazy(bmk.uri.hash(), score, () => { return bmk; });
                 }
             }
         }

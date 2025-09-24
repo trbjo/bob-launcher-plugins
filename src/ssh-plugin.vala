@@ -36,7 +36,7 @@ namespace BobLauncher {
         protected File config_file;
         protected FileMonitor monitor;
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             hosts = new GLib.HashTable<string, SshHost>(str_hash, str_equal);
             this.config_file = File.new_for_path (Environment.get_home_dir () + "/.ssh/config");
 
@@ -53,7 +53,7 @@ namespace BobLauncher {
             }
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
                 this.monitor.changed.disconnect(this.handle_ssh_config_update);
         }
 
@@ -108,7 +108,7 @@ namespace BobLauncher {
                 string match_string = prefix ? "ssh " + host.host_query : host.host_query;
                 Score score = rs.match_score(match_string);
                 if (prefix || score > 0.0) {
-                    rs.add_lazy_unique(score + bonus, host.func);
+                    rs.add_lazy_unique(score, host.func);
                 }
             });
         }
@@ -120,8 +120,16 @@ namespace BobLauncher {
                 return this;
             }
 
-            public void do_action () {
-                Utils.open_command_line("ssh %s".printf (host_query), null, true);
+            public bool do_action () {
+                string ssh = "ssh %s".printf(host_query);
+                string? executable = Environment.find_program_in_path ("ssh");
+                if (executable == null) {
+                    warning ("could not find ssh in path");
+                    return false;
+                }
+
+                string[] argv = {executable, host_query};
+                return BobLaunchContext.get_instance().launch_command(ssh, argv, false, true);
             }
             public override string get_title() {
                 return "SSH to " + host_query;

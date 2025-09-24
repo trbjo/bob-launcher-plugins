@@ -10,7 +10,7 @@ namespace BobLauncher {
             icon_name = "application-x-bittorrent";
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
+        internal override bool activate() {
             try {
                 BASE_URI = Uri.parse(BASE_URL, UriFlags.NONE);
                 return true;
@@ -26,19 +26,13 @@ namespace BobLauncher {
 
         private int[] category_ids = { };
 
-        public override void on_setting_initialized(string key, GLib.Variant value) {
+        public override void on_setting_changed(string key, GLib.Variant value) {
             var iter = value.iterator();
             int val;
             category_ids = {};
             while (iter.next("i", out val)) {
                 category_ids += val;
             }
-        }
-
-        public override SettingsCallback? on_setting_changed(string key, GLib.Variant value) {
-            return (cancellable) => {
-                on_setting_initialized(key, value);
-            };
         }
 
         public string? send_request(string query) {
@@ -66,8 +60,7 @@ namespace BobLauncher {
                 if (response.code == 200) {
                     return response.get_response_body();
                 } else {
-                    throw new GLib.Error(GLib.Quark.from_string("ApiBayError"), 0,
-                        "Torrent search failed with status code: %d", response.code);
+                    throw new CurlClient.HttpClientError.ERROR("Torrent search failed with status code: %d", response.code);
                 }
             } catch (CurlClient.HttpClientError e) {
                 warning("Error occurred: %s", e.message);
@@ -96,18 +89,16 @@ namespace BobLauncher {
                 var torrent_object = torrent_element.get_object();
 
                 // use the number of seeders to set the matchscore
-                uint score = uint.parse(torrent_object.get_string_member("seeders"));
+                int16 seeders = (int16)uint.parse(torrent_object.get_string_member("seeders"));
                 uint hash = torrent_object.get_string_member("info_hash").hash();
                 string name = torrent_object.get_string_member("name");
-                double letter_score = rs.match_score(name);
-                Score combined = letter_score * score + score;
-                if (combined > 0.0) {
-                    rs.add_lazy(hash, combined + bonus, () => new TorrentMatch(torrent_object));
-                }
+                Score letter_score = rs.match_score(name);
+                Score combined = letter_score + seeders;
+                rs.add_lazy(hash, combined, () => new TorrentMatch(torrent_object));
             }
         }
 
-        public class TorrentMatch : Match, ITextMatch {
+        public class TorrentMatch : Match, ITextMatch, IURLMatch {
             public string info_hash { get; set; }
             public uint leechers { get; set; }
             public uint seeders { get; set; }
@@ -136,6 +127,10 @@ namespace BobLauncher {
             }
 
             public string get_text() {
+                return this.uri;
+            }
+
+            public string get_url() {
                 return this.uri;
             }
 

@@ -5,7 +5,8 @@ public Type plugin_init(TypeModule type_module) {
 
 
 namespace BobLauncher {
-    public class DesktopFilePlugin : SearchAction {
+    public class DesktopFilePlugin : SearchBase {
+        public override bool prefer_insertion_order { get { return true; } }
         private class DesktopFileMatch : Match, IDesktopApplication {
             public override string get_icon_name() {
                 return icon_name;
@@ -112,6 +113,9 @@ namespace BobLauncher {
                 if (match is FileMatch) {
                     return MatchScore.ABOVE_THRESHOLD;
                 }
+                if (match is IURLMatch) {
+                    return MatchScore.ABOVE_THRESHOLD;
+                }
                 return MatchScore.BELOW_THRESHOLD;
             }
         }
@@ -135,6 +139,9 @@ namespace BobLauncher {
                 if (match is FileMatch) {
                     return MatchScore.VERY_GOOD;
                 }
+                if (match is IURLMatch) {
+                    return MatchScore.VERY_GOOD;
+                }
                 return MatchScore.BELOW_THRESHOLD;
             }
 
@@ -143,19 +150,14 @@ namespace BobLauncher {
             }
 
             protected override bool do_execute(Match match, Match? target = null) {
-                if (!(match is FileMatch)) {
-                    return false;
-                }
-
-                try {
+                if (match is FileMatch) {
                     var muri = (FileMatch)match;
-                    List<string> uris = new List<string>();
-                    uris.append(muri.get_uri());
-                    desktop_info.app_info.launch_uris(uris, Gdk.Display.get_default().get_app_launch_context());
-                } catch (Error err) {
-                    warning ("%s", err.message);
+                    return BobLaunchContext.get_instance().launch_with_uri(desktop_info.app_info, muri.get_uri());
+                } else if (match is IURLMatch) {
+                    var muri = (IURLMatch)match;
+                    return BobLaunchContext.get_instance().launch_with_uri(desktop_info.app_info, muri.get_url());
                 }
-                return true;
+                return false;
             }
         }
 
@@ -190,19 +192,29 @@ namespace BobLauncher {
             }
 
             public OpenAppAction(DesktopAppInfo info, string action) {
-                var icon = info.get_icon() ?? new ThemedIcon ("application-default-icon");
+                string action_name = info.get_action_name(action);
+                string group_name = "Desktop Action " + action;
+
+                string? icon_name = BobAppInfo.get_string_from_group(info, group_name, "Icon");
+                if (icon_name == null) {
+                    icon_name = info.get_icon()?.to_string();
+                }
+
+                if (icon_name == null) {
+                    icon_name = "application-default-icon";
+                }
+
                 Object (
                     desktop_info: info,
                     action: action,
-                    icon_name: icon.to_string()
+                    icon_name: icon_name
                 );
-                string action_name = info.get_action_name(action);
                 this._description = "Launch action '%s'".printf(action_name);
             }
 
             protected override bool do_execute(Match match, Match? target = null) {
-                    desktop_info.launch_action(action, Gdk.Display.get_default().get_app_launch_context());
-                    return true;
+                BobLaunchContext.get_instance().launch_app(desktop_info, false, action);
+                return true;
             }
         }
 
@@ -224,7 +236,7 @@ namespace BobLauncher {
             dfs.reload_done.connect(load_desktop_files_and_mimes);
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             load_empty_maps();
         }
 
@@ -233,13 +245,14 @@ namespace BobLauncher {
             mimetype_map = new GLib.HashTable<string, GenericArray<OpenWithAction>>(str_hash, str_equal);
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             load_desktop_files_and_mimes();
             return true;
         }
 
         private void load_desktop_files_and_mimes() {
             dfs.desktop_files.foreach((k, dfi) => desktop_files.add(new DesktopFileMatch(dfi)));
+            desktop_files.sort((a, b) => strcmp(b.get_title().down(), a.get_title().down()));
             dfs.mimetype_map.foreach((mime_type, dfi_lst) => {
                 var ow_list = new GenericArray<OpenWithAction>();
                 foreach (unowned var dfi in dfi_lst) {
@@ -256,7 +269,7 @@ namespace BobLauncher {
                 string desc = dfm.get_description();
                 string title = dfm.get_title();
 
-                Score score = 0.0;
+                Score score = 0;
                 if (query_empty) {
                     score = MatchScore.ABOVE_THRESHOLD;
                 } else if (rs.has_match(title)) {
@@ -273,7 +286,7 @@ namespace BobLauncher {
                     continue;
                 }
 
-                rs.add_lazy_unique(score + bonus, dfm.func);
+                rs.add_lazy_unique(score, dfm.func);
             }
         }
 
@@ -294,6 +307,23 @@ namespace BobLauncher {
                 foreach (var action in dmatch.get_actions()) {
                     rs.add_action(action);
                 }
+            } else if (match is IURLMatch) {
+                var um = (IURLMatch)match;
+                string url = um.get_url();
+                string mime = "x-scheme-handler/http";
+                if (url.has_prefix("https")) {
+                    mime += "s";
+                }
+                var mimes = mimetype_map.get(mime);
+
+                if (mimes != null) {
+                    foreach (var action in mimes) {
+                        rs.add_action(action);
+                    }
+                }
+
+                mtc.update_mime_type(mime);
+                rs.add_action(mtc);
             }
         }
     }

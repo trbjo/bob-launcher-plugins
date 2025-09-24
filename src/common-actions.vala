@@ -12,7 +12,7 @@ namespace BobLauncher {
             icon_name = "system-run";
         }
 
-        protected override bool activate(Cancellable current_cancellable) {
+        public override bool activate() {
             actions = new GenericArray<Action>();
 
             actions.add(new Runner());
@@ -24,7 +24,7 @@ namespace BobLauncher {
             return true;
         }
 
-        protected override void deactivate() {
+        public override void deactivate() {
             actions = new GenericArray<Action>();
         }
 
@@ -63,28 +63,16 @@ namespace BobLauncher {
 
 
             protected override bool do_execute(Match match, Match? target = null) {
-                if (match is IDesktopApplication) {
+                if (match is IActionMatch) {
+                    return ((IActionMatch)match).do_action();
+                } else if (match is IDesktopApplication) {
                     unowned IDesktopApplication app_match = (IDesktopApplication) match;
-                    try {
-                        app_match.get_desktop_appinfo().launch (null, Gdk.Display.get_default().get_app_launch_context());
-                    } catch (Error err) {
-                        warning ("%s", err.message);
-                    }
-                } else if (match is IActionMatch) {
-                    ((IActionMatch)match).do_action();
+                    return BobLaunchContext.get_instance().launch_app(app_match.get_desktop_appinfo());
                 } else if (match is IFile) {
-                    string uri = ((IFile)match).get_uri();
-                    try {
-                        AppInfo.launch_default_for_uri(uri, null);
-                    } catch (Error err) {
-                        warning ("%s", err.message);
-                        return false;
-                    }
-                } else {
-                    warning ("'%s' is not be handled here", match.get_title());
-                    return false;
+                    return BobLaunchContext.get_instance().launch_file(((IFile)match).get_file());
                 }
-                return true;
+                warning ("'%s' is not be handled here", match.get_title());
+                return false;
             }
         }
 
@@ -106,13 +94,7 @@ namespace BobLauncher {
                 try {
                     if (match is IDesktopApplication) {
                         unowned IDesktopApplication app_match = (IDesktopApplication) match;
-                        Utils.open_command_line(app_match.get_desktop_appinfo().get_commandline(), app_match.get_desktop_appinfo().get_name(), true);
-                        return true;
-                    } else if (match is IFile) {
-                        File file = ((IFile)match).get_file();
-                        AppInfo app_info = AppInfo.create_from_commandline(file.get_path(), file.get_basename(), AppInfoCreateFlags.NEEDS_TERMINAL);
-                        Utils.launch_app(app_info);
-                        return true;
+                        return BobLaunchContext.get_instance().launch_app(app_match.get_desktop_appinfo(), true, null);
                     } else {
                         return false;
                     }
@@ -151,17 +133,14 @@ namespace BobLauncher {
             }
 
             protected override bool do_execute(Match match, Match? target = null) {
-                try {
-                    if (match is IFile) {
-                        var file = ((IFile)match).get_file();
-                        var context = Gdk.Display.get_default().get_app_launch_context();
-                        AppInfo.launch_default_for_uri(file.get_uri(), context);
-                        return true;
-                    } else if (match is IURLMatch) {
-                        GLib.AppInfo.launch_default_for_uri(match.get_url(), Gdk.Display.get_default().get_app_launch_context());
-                        return true;
-                    }
-                } catch (Error e) { }
+                if (match is IFile) {
+                    var file = ((IFile)match).get_file();
+                    BobLaunchContext.get_instance().launch_file(file);
+                    return true;
+                } else if (match is IURLMatch) {
+                    BobLaunchContext.get_instance().launch_uri(match.get_url());
+                    return true;
+                }
                 return false;
             }
 

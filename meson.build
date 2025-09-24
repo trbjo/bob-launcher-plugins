@@ -9,6 +9,9 @@ project('io.github.trbjo.bob.launcher.plugins', 'vala', 'c',
 )
 project_name = 'io.github.trbjo.bob.launcher'
 
+# Check if we're being built as a subproject
+is_subproject = meson.is_subproject()
+
 common_deps = {
     'gtk4': dependency('gtk4-wayland', version: '>= 4.0.0'),
     'glib': dependency('glib-2.0'),
@@ -17,7 +20,7 @@ common_deps = {
 }
 
 common_c_args = ['-w']
-common_link_args = ['-Wl,--as-needed', '-Wl,-z,now', '-lm']
+common_link_args = ['-Wl,--as-needed', '-Wl,-z,now', '-lm', '-lxxhash']
 common_vala_args = []
 
 extra_deps = {
@@ -30,16 +33,20 @@ extra_deps = {
 }
 
 database_dep = subproject('database').get_variable('database_dep')
+file_monitor_lib = subproject('file-monitor')
+file_monitor_dep = file_monitor_lib.get_variable('file_monitor_dep')
+file_monitor_vapi = file_monitor_lib.get_variable('file_monitor_dep').get_variable('vapi_dir')
 
 curl_lib = subproject('vurla')
 curl_dep = curl_lib.get_variable('curl_dep')
 curl_vapi = curl_lib.get_variable('curl_dep').get_variable('vapi_dir')
 
+# Plugin sources mapping
 plugins = {
-    'api-bay': files('src/api-bay.vala'),
+    'api_bay': files('src/api-bay.vala'),
     'calculator': files('src/calculator-plugin.vala'),
     'chromium': files('src/chromium-plugin.vala'),
-    'clipboard-manager': files(
+    'clipboard_manager': files(
         'src/clipboard/clipboard-manager-plugin.vala',
         'src/clipboard/clipboard-matches.vala',
         'src/clipboard/clipboard-database.vala',
@@ -48,85 +55,173 @@ plugins = {
         'src/clipboard/wayland-clipboard.c',
         'src/clipboard/wayland-clipboard.h',
         'src/clipboard/clipboard-hashtable.h',
-        'src/clipboard/clipboard-hashtable.c'
+        'src/clipboard/clipboard-hashtable.c',
+        'src/clipboard/wayland_protocol_check.h',
+        'src/clipboard/wayland_protocol_check.c'
     ),
     'command': files('src/command-plugin.vala'),
-    'common-actions': files('src/common-actions.vala'),
-    'desktop-file': files('src/desktop-file-service.vala', 'src/desktop-file-plugin.vala'),
+    'common_actions': files('src/common-actions.vala'),
+    'desktop_file': files('src/desktop-file-service.vala', 'src/desktop-file-plugin.vala'),
     'downloads': files('src/downloads-plugin.vala'),
-    'file-op': files('src/file-op-plugin.vala'),
-    'file-search': files(
-        'src/file-search/file-monitor.h',
-        'src/file-search/file-monitor.c',
+    'file_op': files('src/file-op-plugin.vala'),
+    'file_search': files(
         'src/file-search/file-hashtable.h',
         'src/file-search/file-hashtable.c',
         'src/file-search/file-tree-manager.h',
         'src/file-search/file-tree-manager.c',
         'src/file-search/file-search-plugin.vala',
     ),
-    'firefox-bookmarks': files('src/firefox-history/firefox-bookmarks-plugin.vala', 'src/firefox-history/firefox-match.vala'),
-    'gnome-bookmarks': files('src/gnome-bookmarks-plugin.vala'),
+    'firefox_bookmarks': files('src/firefox-history/firefox-bookmarks-plugin.vala', 'src/firefox-history/firefox-match.vala'),
+    'gnome_bookmarks': files('src/gnome-bookmarks-plugin.vala'),
     'imgur': files('src/imgur-plugin.vala'),
     'mpris': files('src/mpris-plugin.vala'),
     'pass': files('src/pass-plugin.vala'),
     'pastebin': files('src/pastebin-plugin.vala'),
-    'recently-used': files('src/recently-used.vala'),
+    'recently_used': files('src/recently-used.vala'),
     'ssh': files('src/ssh-plugin.vala'),
-    'systemd-service': files('src/systemd-service-plugin.vala'),
-    'process-monitor': files('src/process-monitor/process-monitor.vala', 'src/process-monitor/posix-utils.vala','src/process-monitor/process-match.vala'),
+    'systemd_service': files('src/systemd-service-plugin.vala'),
+    'process_monitor': files('src/process-monitor/process-monitor.vala', 'src/process-monitor/posix-utils.vala','src/process-monitor/process-match.vala'),
     'tracker': files('src/tracker.vala'),
     'transmission': files('src/transmission-plugin.vala'),
-    'url-shortener': files('src/url-shortener-plugin.vala'),
-    'wifi': files('src/wifi-plugin.vala')
+    'url_shortener': files('src/url-shortener-plugin.vala'),
 }
 
+# Plugin-specific dependencies
 plugin_specific_deps = {
     'tracker': ['tinysparql'],
-    'clipboard-manager': [database_dep, 'json', 'posix', 'wayland'],
+    'downloads': [file_monitor_dep],
+    'recently_used': [file_monitor_dep],
+    'file_search': [file_monitor_dep],
+    'desktop_file': [file_monitor_dep],
+    'clipboard_manager': [database_dep, 'json', 'posix', 'wayland'],
     'command': [database_dep],
     'chromium': ['json'],
-    'firefox-bookmarks': [database_dep],
+    'firefox_bookmarks': [database_dep],
     'pass': ['libnotify'],
     'pastebin': ['libsoup', 'libnotify'],
     'imgur': ['libsoup', 'json', 'libnotify'],
     'transmission': ['libsoup', 'json'],
-    'url-shortener': ['libsoup', 'libnotify'],
-    'api-bay': [curl_dep, 'posix', 'json'],
-    'process-monitor': ['posix'],
+    'url_shortener': ['libsoup', 'libnotify'],
+    'api_bay': [curl_dep, 'posix', 'json'],
+    'process_monitor': ['posix'],
 }
 
 plugin_install_dir = join_paths(get_option('libdir'), project_name)
 
+# Build include directories based on what plugins are enabled
 inc_dirs = [ ]
-
 plugin_vala_args = [
     '--vapidir=' + join_paths(meson.current_source_dir(), 'vapi'),
     '--pkg=levensteihn',
+    '--pkg=constants',
     '--pkg=data-sink-actions',
     '--pkg=bob-launcher',
     '--pkg=icon-cache-service',
     '--pkg=result-container',
 ]
 
-if 'file-search' in plugins
+# Process plugin options and build lists
+static_plugin_sources = []
+static_plugin_deps = []
+static_plugin_names = []
+dynamic_plugin_names = []
+
+foreach plugin_name, sources : plugins
+    option_name = 'plugin_' + plugin_name
+    plugin_mode = get_option(option_name)
+
+    if plugin_mode == '0'
+        # Disabled
+        continue
+    elif plugin_mode == '1'
+        # Static compilation
+        static_plugin_sources += sources
+        static_plugin_names += plugin_name
+
+        # Add dependencies for static plugins
+        if plugin_name in plugin_specific_deps
+            foreach dep : plugin_specific_deps[plugin_name]
+                if dep in ['json', 'posix', 'wayland', 'libsoup', 'libnotify', 'tinysparql']
+                    static_plugin_deps += extra_deps[dep]
+                else
+                    static_plugin_deps += dep
+                endif
+            endforeach
+        endif
+    elif plugin_mode == '2'
+        # Dynamic compilation
+        dynamic_plugin_names += plugin_name
+    endif
+endforeach
+
+# Add include directories and vala args for enabled plugins
+if 'downloads' in static_plugin_names or 'downloads' in dynamic_plugin_names
+    plugin_vala_args += '--vapidir=' + file_monitor_vapi
+    plugin_vala_args += '--pkg=file-monitor'
+endif
+
+if 'recently_used' in static_plugin_names or 'recently_used' in dynamic_plugin_names
+    plugin_vala_args += '--vapidir=' + file_monitor_vapi
+    plugin_vala_args += '--pkg=file-monitor'
+endif
+
+if 'file_search' in static_plugin_names or 'file_search' in dynamic_plugin_names
     inc_dirs += include_directories('src/file-search')
     plugin_vala_args += '--vapidir=' + join_paths(meson.current_source_dir(), 'src/file-search/vapi')
     plugin_vala_args += '--pkg=file-hashtable'
+    plugin_vala_args += '--vapidir=' + file_monitor_vapi
     plugin_vala_args += '--pkg=file-monitor'
     plugin_vala_args += '--pkg=file-tree-manager'
 endif
 
-if 'clipboard-manager' in plugins
+if 'clipboard_manager' in static_plugin_names or 'clipboard_manager' in dynamic_plugin_names
     inc_dirs += include_directories('src/clipboard')
     plugin_vala_args += '--vapidir=' + join_paths(meson.current_source_dir(), 'src/clipboard/vapi')
     plugin_vala_args += '--pkg=wayland-clipboard'
     plugin_vala_args += '--pkg=clipboard-hashtable'
+    plugin_vala_args += '--pkg=wayland-protocol-check'
 endif
 
-if 'api-bay' in plugins
+if 'api_bay' in static_plugin_names or 'api_bay' in dynamic_plugin_names
     plugin_vala_args += '--vapidir=' + curl_vapi
     plugin_vala_args += '--pkg=libcurl'
     plugin_vala_args += '--pkg=posix'
+endif
+
+# Export variables for parent project
+if is_subproject
+    set_variable('static_plugin_sources', static_plugin_sources)
+    set_variable('static_plugin_deps', static_plugin_deps)
+    set_variable('static_plugin_names', static_plugin_names)
+    set_variable('plugin_c_args', common_c_args)
+    set_variable('plugin_vala_args', plugin_vala_args)
+    set_variable('plugin_inc_dirs', inc_dirs)
+
+    # Generate static plugin registration file
+    if static_plugin_names.length() > 0
+        static_registration_vala = custom_target('static-plugin-registration',
+            output: 'static-plugin-registration.vala',
+            capture: true,
+            command: ['python3', '-c', '''
+import sys
+plugins = sys.argv[1].split(",") if sys.argv[1] else []
+print("/* Generated file - do not edit */")
+print("#if STATIC_PLUGINS")
+print("namespace BobLauncher.Plugins {")
+print("    public static Type[] get_static_plugin_types() {")
+print("        Type[] types = {")
+for plugin in plugins:
+    class_name = "".join([p.capitalize() for p in plugin.split("_")]) + "Plugin"
+    print(f"            typeof({class_name}),")
+print("        };")
+print("        return types;")
+print("    }")
+print("}")
+print("#endif")
+''', ','.join(static_plugin_names)]
+        )
+        set_variable('static_registration_file', static_registration_vala)
+    endif
 endif
 
 # Install the plugins GSchema
@@ -159,10 +254,19 @@ compile_schemas = custom_target('glib-compile-schemas',
     ]
 )
 
-foreach plugin_name, sources : plugins
-    # Start with common dependencies
+# Build dynamic plugins
+optimization_flags = [
+    '-march=native',
+    '-fno-plt',
+    '-fno-stack-protector',
+    '-funroll-loops',
+    '-ffast-math',
+    '-ftree-vectorize',
+]
+
+foreach plugin_name : dynamic_plugin_names
     plugin_deps = []
-    plugin_sources = sources
+    plugin_sources = plugins[plugin_name]
 
     foreach dep_name, dep : common_deps
         plugin_deps += dep
@@ -178,18 +282,6 @@ foreach plugin_name, sources : plugins
         endforeach
     endif
 
-    optimization_flags = [
-        # '-O2',                   # Base optimization level
-        # '-march=native',         # CPU-specific optimizations
-        # '-fno-plt',              # For function pointer calls
-        # '-fno-stack-protector',  # Remove stack protection overhead
-        # '-funroll-loops',        # Unroll loops
-        # '-flto',                 # Link-time optimization
-        '-ffast-math',           # Fast math operations
-        '-fno-plt',              # Better indirect calls
-        '-ftree-vectorize',      # Enable vectorization
-    ]
-
     shared_module(plugin_name,
         plugin_sources,
         name_prefix: 'lib-',
@@ -199,10 +291,10 @@ foreach plugin_name, sources : plugins
         install_dir: plugin_install_dir,
         include_directories: inc_dirs,
         c_args: common_c_args + optimization_flags + [
+            '-I/usr/include/xxhash',
             '-D_GNU_SOURCE',
+            '-include', join_paths(meson.current_source_dir(), 'vapi/xxhash-override.h'),
             '-I' + join_paths(meson.current_source_dir(), 'vapi'),
-            # '-fsanitize=address',
-            # '-fno-omit-frame-pointer',
         ],
         link_args: common_link_args,
         vala_args: common_vala_args + plugin_vala_args

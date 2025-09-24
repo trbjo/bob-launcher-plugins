@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/eventfd.h>
 #include <immintrin.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -29,10 +30,11 @@ struct clipboard_manager_t {
     pthread_t thread_id;
     pthread_mutex_t mutex;
 
-    uint32_t last_hash;
-    bool prevent_infinite_loop;
+    int wake_fd;
 
-    // User callback
+    uint32_t last_hash;
+    bool prevent_deadlock;
+
     clipboard_changed_callback on_clipboard_changed;
 };
 
@@ -91,9 +93,16 @@ clipboard_manager* clipboard_manager_new(clipboard_changed_callback callback) {
 
     atomic_init(&manager->running, STOPPED);
 
-    // Initialize mutex
     if (pthread_mutex_init(&manager->mutex, NULL) != 0) {
         fprintf(stderr, "Failed to initialize mutex\n");
+        free(manager);
+        return NULL;
+    }
+
+    manager->wake_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+    if (manager->wake_fd < 0) {
+        fprintf(stderr, "Failed to create eventfd\n");
+        pthread_mutex_destroy(&manager->mutex);
         free(manager);
         return NULL;
     }
@@ -103,6 +112,7 @@ clipboard_manager* clipboard_manager_new(clipboard_changed_callback callback) {
     manager->display = wl_display_connect(NULL);
     if (!manager->display) {
         fprintf(stderr, "Failed to connect to Wayland display\n");
+        close(manager->wake_fd);
         pthread_mutex_destroy(&manager->mutex);
         free(manager);
         return NULL;
@@ -112,6 +122,7 @@ clipboard_manager* clipboard_manager_new(clipboard_changed_callback callback) {
     if (!manager->registry) {
         fprintf(stderr, "Failed to get Wayland registry\n");
         wl_display_disconnect(manager->display);
+        close(manager->wake_fd);
         pthread_mutex_destroy(&manager->mutex);
         free(manager);
         return NULL;
@@ -119,10 +130,8 @@ clipboard_manager* clipboard_manager_new(clipboard_changed_callback callback) {
 
     wl_registry_add_listener(manager->registry, &registry_listener, manager);
 
-    // Roundtrip to process registry events
     wl_display_roundtrip(manager->display);
 
-    // Check if we got all the required objects
     if (!manager->manager || !manager->seat) {
         fprintf(stderr, "Failed to find required Wayland globals\n");
         if (manager->manager) {
@@ -130,6 +139,7 @@ clipboard_manager* clipboard_manager_new(clipboard_changed_callback callback) {
         }
         wl_registry_destroy(manager->registry);
         wl_display_disconnect(manager->display);
+        close(manager->wake_fd);
         pthread_mutex_destroy(&manager->mutex);
         free(manager);
         return NULL;
@@ -141,6 +151,7 @@ clipboard_manager* clipboard_manager_new(clipboard_changed_callback callback) {
         zwlr_data_control_manager_v1_destroy(manager->manager);
         wl_registry_destroy(manager->registry);
         wl_display_disconnect(manager->display);
+        close(manager->wake_fd);
         pthread_mutex_destroy(&manager->mutex);
         free(manager);
         return NULL;
@@ -158,12 +169,13 @@ void clipboard_manager_destroy(clipboard_manager *manager) {
     if (!manager) {
         return;
     }
-    atomic_store(&manager->running, STOPPED);
-    wl_display_roundtrip(manager->display);
 
-    while (atomic_load(&manager->running) != SHUTTING_DOWN) {
-        _mm_pause();
-    }
+    atomic_store(&manager->running, STOPPED);
+
+    // Wake up the event thread
+    uint64_t val = 1;
+    write(manager->wake_fd, &val, sizeof(val));
+
     pthread_join(manager->thread_id, NULL);
 
     if (manager->device) {
@@ -182,10 +194,13 @@ void clipboard_manager_destroy(clipboard_manager *manager) {
         wl_display_disconnect(manager->display);
     }
 
+    if (manager->wake_fd >= 0) {
+        close(manager->wake_fd);
+    }
+
     pthread_mutex_destroy(&manager->mutex);
 
     free(manager);
-    manager = NULL;
 }
 
 void clipboard_manager_listen(clipboard_manager *manager) {
@@ -255,7 +270,7 @@ void clipboard_manager_set_clipboard(clipboard_manager *manager, GHashTable *con
     zwlr_data_control_source_v1_add_listener(source, &source_listener, data);
 
     // Set flag to avoid processing our own selection
-    manager->prevent_infinite_loop = true;
+    manager->prevent_deadlock = true;
 
     zwlr_data_control_device_v1_set_selection(manager->device, source);
 
@@ -267,10 +282,34 @@ void clipboard_manager_set_clipboard(clipboard_manager *manager, GHashTable *con
 static void* event_loop_thread(void *data) {
     clipboard_manager *manager = data;
 
-    while (atomic_load(&manager->running) && wl_display_dispatch(manager->display) != -1) { }
+    struct pollfd fds[2];
+    fds[0].fd = wl_display_get_fd(manager->display);
+    fds[0].events = POLLIN;
+    fds[1].fd = manager->wake_fd;
+    fds[1].events = POLLIN;
+
+    int running;
+    while ((running = atomic_load(&manager->running)) == RUNNING) {
+        if (poll(fds, 2, -1) < 0) {
+            if (errno == EINTR) continue;
+            fprintf(stderr, "poll error: %s\n", strerror(errno));
+            break;
+        }
+
+        if (fds[1].revents & POLLIN) {
+            uint64_t val;
+            read(manager->wake_fd, &val, sizeof(val));
+        }
+
+        if (fds[0].revents & POLLIN) {
+            if (wl_display_dispatch(manager->display) < 0) {
+                fprintf(stderr, "wl_display_dispatch failed\n");
+                break;
+            }
+        }
+    }
 
     atomic_store(&manager->running, SHUTTING_DOWN);
-
     return NULL;
 }
 
@@ -322,9 +361,9 @@ static void device_handle_selection(void *data, struct zwlr_data_control_device_
                                   struct zwlr_data_control_offer_v1 *id) {
     clipboard_manager *manager = data;
 
-    // If we're in infinite loop prevention mode, ignore this selection
-    if (manager->prevent_infinite_loop) {
-        manager->prevent_infinite_loop = false;
+    // If we're in deadlock prevention mode, ignore this selection
+    if (manager->prevent_deadlock) {
+        manager->prevent_deadlock = false;
         return;
     }
 
