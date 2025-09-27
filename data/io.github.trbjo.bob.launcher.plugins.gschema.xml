@@ -9,6 +9,7 @@
 
   <schema id="io.github.trbjo.bob.launcher.plugins" path="/io/github/trbjo/bob/launcher/plugins/">
     <child name="api-bay" schema="io.github.trbjo.bob.launcher.plugins.api-bay"/>
+    <child name="snippets" schema="io.github.trbjo.bob.launcher.plugins.snippets"/>
     <child name="calculator" schema="io.github.trbjo.bob.launcher.plugins.calculator"/>
     <child name="chromium" schema="io.github.trbjo.bob.launcher.plugins.chromium"/>
     <child name="clipboard-manager" schema="io.github.trbjo.bob.launcher.plugins.clipboard-manager"/>
@@ -70,6 +71,39 @@
       <default>[100, 300, 600]</default>
       <summary>Category IDs to search</summary>
       <description>List of category IDs to include in searches</description>
+    </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.snippets" path="/io/github/trbjo/bob/launcher/plugins/snippets/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Snippets</summary>
+      <description>Store Snippets</description>
+    </key>
+    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.snippets.settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.snippets.settings" path="/io/github/trbjo/bob/launcher/plugins/snippets/settings/">
+    <key name="regex-match" type="s">
+      <default>"...+"</default>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>false</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
   </schema>
 
