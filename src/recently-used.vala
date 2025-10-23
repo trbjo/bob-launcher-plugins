@@ -32,7 +32,7 @@ namespace BobLauncher {
 
             load_recent_files();
 
-            file_monitor = new INotify.Monitor(on_file_changed_static);
+            file_monitor = new INotify.Monitor(load_recent_files);
             string[] paths = { self_path };
             int result = file_monitor.add_paths(paths);
 
@@ -56,19 +56,6 @@ namespace BobLauncher {
 
         private static weak RecentlyUsedPlugin? instance = null;
         private static uint timeout_id;
-
-        private static void on_file_changed_static(string path, int event_type) {
-            if (timeout_id != 0) {
-                Source.remove(timeout_id);
-                timeout_id = 0;
-            }
-
-            timeout_id = Timeout.add(200, () => {
-                timeout_id = 0;
-                instance.load_recent_files();
-                return false;
-            });
-        }
 
         private void load_recent_files() {
             recent_files = new GenericArray<FileInfo>();
@@ -163,7 +150,7 @@ namespace BobLauncher {
                 try {
                     string filepath = GLib.Filename.from_uri(uri);
                     Score path_score = rs.match_score(filepath);
-                    if (needle_empty || path_score > 0.0) {
+                    if (needle_empty || path_score >= MatchScore.ABOVE_THRESHOLD) {
                         // Extract timestamp from FileInfo
                         int64 timestamp_unix = file_info.get_attribute_int64("custom::timestamp");
                         DateTime? timestamp = new DateTime.from_unix_utc(timestamp_unix);

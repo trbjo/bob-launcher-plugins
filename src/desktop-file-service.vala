@@ -129,17 +129,17 @@ namespace BobLauncher {
             }
         }
 
-        private static uint timeout_id;
+        private uint timeout_id;
 
-        private static void desktop_file_directory_changed() {
+        private void desktop_file_directory_changed() {
             if (timeout_id != 0) {
                 Source.remove(timeout_id);
             }
 
             timeout_id = Timeout.add(100, () => {
                 timeout_id = 0;
-                instance.reload_started();
-                instance.reload_desktop_files();
+                reload_started();
+                reload_desktop_files();
                 return false;
             });
         }

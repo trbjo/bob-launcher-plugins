@@ -372,10 +372,6 @@ namespace BobLauncher {
             math_parser = new Mather.MathParser();
         }
 
-        public CalculatorPlugin(GLib.TypeModule module) {
-            Object();
-        }
-
         construct {
             icon_name = "accessories-calculator";
             calc_match_decimal = new CalcResult("Decimal");

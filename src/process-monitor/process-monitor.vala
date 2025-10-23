@@ -2,7 +2,6 @@ using ProcessUtils;
 
 [ModuleInit]
 public Type plugin_init() {
-
     return typeof(BobLauncher.ProcessMonitorPlugin);
 }
 
@@ -39,7 +38,7 @@ namespace BobLauncher {
         }
 
         construct {
-            icon_name = "org.gnome.SystemMonitor";
+            icon_name = "utilities-system-monitor";
         }
 
         private const string PROC_FILE_ATTRIBUTES =

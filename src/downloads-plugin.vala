@@ -28,7 +28,7 @@ namespace BobLauncher {
         public override bool activate() {
             load_directory_contents();
 
-            file_monitor = new INotify.Monitor(on_file_changed_static);
+            file_monitor = new INotify.Monitor(on_file_changed);
 
             string[] paths = { dl_path };
             int result = file_monitor.add_paths(paths);
@@ -95,15 +95,6 @@ namespace BobLauncher {
             } catch (Error e) {
                 stderr.printf("Error loading directory contents: %s\n", e.message);
             }
-        }
-
-        private static void on_file_changed_static(string path, int event_type) {
-            var inst = instance;
-            if (inst == null) {
-                return;
-            }
-
-            inst.on_file_changed(path, event_type);
         }
 
         private void on_file_changed(string path, int event_type) {

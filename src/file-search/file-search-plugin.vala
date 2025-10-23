@@ -109,17 +109,15 @@ namespace BobLauncher {
         }
 
         private void stop_file_monitoring() {
-            if (monitor.remove_paths(monitored_paths.get_keys_as_array()) == 0) {
-                message("File monitoring stopped");
-            } else {
+            if (monitor.remove_paths(monitored_paths.get_keys_as_array()) != 0) {
                 warning("Failed to stop file monitoring");
             }
         }
 
-        private static void on_file_changed(string path, int event_type) {
-            instance.mu.lock();
-            instance._on_file_changed(path, event_type);
-            instance.mu.unlock();
+        private void on_file_changed(string path, int event_type) {
+            mu.lock();
+            _on_file_changed(path, event_type);
+            mu.unlock();
         }
 
         private DirectoryConfig? find_best_dc(string path) {

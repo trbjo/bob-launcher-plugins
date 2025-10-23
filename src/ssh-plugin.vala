@@ -102,14 +102,8 @@ namespace BobLauncher {
         }
 
         public override void search(ResultContainer rs) {
-            string needle = rs.get_query();
-            bool prefix = needle.down().has_prefix("ssh");
             hosts.foreach((_, host) => {
-                string match_string = prefix ? "ssh " + host.host_query : host.host_query;
-                Score score = rs.match_score(match_string);
-                if (prefix || score > 0.0) {
-                    rs.add_lazy_unique(score, host.func);
-                }
+                rs.add_lazy_unique(rs.match_score(host.host_query), host.func);
             });
         }
 

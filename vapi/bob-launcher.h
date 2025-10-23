@@ -9,8 +9,8 @@
 #include <glib.h>
 #include <gio/gio.h>
 #include <match.h>
-#include <gio/gdesktopappinfo.h>
 #include <gtk/gtk.h>
+#include <gio/gdesktopappinfo.h>
 #include <gdk/gdk.h>
 #include <pango/pango.h>
 #include <data-sink-actions.h>
@@ -86,6 +86,14 @@ typedef struct _BobLauncherMatchClass BobLauncherMatchClass;
 typedef struct _BobLauncherDescription BobLauncherDescription;
 typedef struct _BobLauncherDescriptionClass BobLauncherDescriptionClass;
 
+#define BOB_LAUNCHER_TYPE_IRICH_ICON (bob_launcher_irich_icon_get_type ())
+#define BOB_LAUNCHER_IRICH_ICON(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_IRICH_ICON, BobLauncherIRichIcon))
+#define BOB_LAUNCHER_IS_IRICH_ICON(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BOB_LAUNCHER_TYPE_IRICH_ICON))
+#define BOB_LAUNCHER_IRICH_ICON_GET_INTERFACE(obj) (G_TYPE_INSTANCE_GET_INTERFACE ((obj), BOB_LAUNCHER_TYPE_IRICH_ICON, BobLauncherIRichIconIface))
+
+typedef struct _BobLauncherIRichIcon BobLauncherIRichIcon;
+typedef struct _BobLauncherIRichIconIface BobLauncherIRichIconIface;
+
 #define BOB_LAUNCHER_TYPE_IURL_MATCH (bob_launcher_iurl_match_get_type ())
 #define BOB_LAUNCHER_IURL_MATCH(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_IURL_MATCH, BobLauncherIURLMatch))
 #define BOB_LAUNCHER_IS_IURL_MATCH(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BOB_LAUNCHER_TYPE_IURL_MATCH))
@@ -93,6 +101,14 @@ typedef struct _BobLauncherDescriptionClass BobLauncherDescriptionClass;
 
 typedef struct _BobLauncherIURLMatch BobLauncherIURLMatch;
 typedef struct _BobLauncherIURLMatchIface BobLauncherIURLMatchIface;
+
+#define BOB_LAUNCHER_TYPE_IURI_MATCH (bob_launcher_iuri_match_get_type ())
+#define BOB_LAUNCHER_IURI_MATCH(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_IURI_MATCH, BobLauncherIURIMatch))
+#define BOB_LAUNCHER_IS_IURI_MATCH(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), BOB_LAUNCHER_TYPE_IURI_MATCH))
+#define BOB_LAUNCHER_IURI_MATCH_GET_INTERFACE(obj) (G_TYPE_INSTANCE_GET_INTERFACE ((obj), BOB_LAUNCHER_TYPE_IURI_MATCH, BobLauncherIURIMatchIface))
+
+typedef struct _BobLauncherIURIMatch BobLauncherIURIMatch;
+typedef struct _BobLauncherIURIMatchIface BobLauncherIURIMatchIface;
 
 #define BOB_LAUNCHER_TYPE_IDESKTOP_APPLICATION (bob_launcher_idesktop_application_get_type ())
 #define BOB_LAUNCHER_IDESKTOP_APPLICATION(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_IDESKTOP_APPLICATION, BobLauncherIDesktopApplication))
@@ -218,6 +234,7 @@ struct _BobLauncherIFileIface {
 	gchar* (*get_file_path) (BobLauncherIFile* self);
 	gchar* (*get_uri) (BobLauncherIFile* self);
 	gchar* (*get_mime_type) (BobLauncherIFile* self);
+	gboolean (*is_directory) (BobLauncherIFile* self);
 	GFile* (*get_file) (BobLauncherIFile* self);
 };
 
@@ -236,9 +253,19 @@ struct _BobLauncherIRichDescriptionIface {
 	BobLauncherDescription* (*get_rich_description) (BobLauncherIRichDescription* self, needle_info* si);
 };
 
+struct _BobLauncherIRichIconIface {
+	GTypeInterface parent_iface;
+	GtkWidget* (*get_rich_icon) (BobLauncherIRichIcon* self);
+};
+
 struct _BobLauncherIURLMatchIface {
 	GTypeInterface parent_iface;
 	gchar* (*get_url) (BobLauncherIURLMatch* self);
+};
+
+struct _BobLauncherIURIMatchIface {
+	GTypeInterface parent_iface;
+	gchar* (*get_uri) (BobLauncherIURIMatch* self);
 };
 
 struct _BobLauncherIDesktopApplicationIface {
@@ -334,6 +361,7 @@ struct _BobLauncherActionTarget {
 
 struct _BobLauncherActionTargetClass {
 	BobLauncherActionClass parent_class;
+	BobLauncherMatch* (*target_match) (BobLauncherActionTarget* self, const gchar* query);
 };
 
 struct _BobLauncherUnknownMatch {
@@ -358,11 +386,8 @@ struct _BobLauncherPluginBaseClass {
 	gboolean (*activate) (BobLauncherPluginBase* self);
 	void (*deactivate) (BobLauncherPluginBase* self);
 	void (*on_setting_changed) (BobLauncherPluginBase* self, const gchar* key, GVariant* value);
-	gboolean (*handle_base_settings) (BobLauncherPluginBase* self, GSettings* settings, const gchar* key);
 	gchar* (*to_string) (BobLauncherPluginBase* self);
 	void (*find_for_match) (BobLauncherPluginBase* self, BobLauncherMatch* match, ActionSet* rs);
-	GPtrArray* (*get_search_providers) (BobLauncherPluginBase* self);
-	void (*set_search_providers) (BobLauncherPluginBase* self, GPtrArray* value);
 };
 
 struct _BobLauncherSearchBase {
@@ -384,6 +409,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherIFile, g_object_unref)
 VALA_EXTERN gchar* bob_launcher_ifile_get_file_path (BobLauncherIFile* self);
 VALA_EXTERN gchar* bob_launcher_ifile_get_uri (BobLauncherIFile* self);
 VALA_EXTERN gchar* bob_launcher_ifile_get_mime_type (BobLauncherIFile* self);
+VALA_EXTERN gboolean bob_launcher_ifile_is_directory (BobLauncherIFile* self);
 VALA_EXTERN GFile* bob_launcher_ifile_get_file (BobLauncherIFile* self);
 VALA_EXTERN GType bob_launcher_itext_match_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherITextMatch, g_object_unref)
@@ -399,9 +425,15 @@ VALA_EXTERN GType bob_launcher_irich_description_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherIRichDescription, g_object_unref)
 VALA_EXTERN BobLauncherDescription* bob_launcher_irich_description_get_rich_description (BobLauncherIRichDescription* self,
                                                                              needle_info* si);
+VALA_EXTERN GType bob_launcher_irich_icon_get_type (void) G_GNUC_CONST ;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherIRichIcon, g_object_unref)
+VALA_EXTERN GtkWidget* bob_launcher_irich_icon_get_rich_icon (BobLauncherIRichIcon* self);
 VALA_EXTERN GType bob_launcher_iurl_match_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherIURLMatch, g_object_unref)
 VALA_EXTERN gchar* bob_launcher_iurl_match_get_url (BobLauncherIURLMatch* self);
+VALA_EXTERN GType bob_launcher_iuri_match_get_type (void) G_GNUC_CONST ;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherIURIMatch, g_object_unref)
+VALA_EXTERN gchar* bob_launcher_iuri_match_get_uri (BobLauncherIURIMatch* self);
 VALA_EXTERN GType bob_launcher_action_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherAction, g_object_unref)
 VALA_EXTERN GType bob_launcher_idesktop_application_get_type (void) G_GNUC_CONST ;
@@ -443,6 +475,7 @@ VALA_EXTERN GPtrArray* bob_launcher_file_match_split_path_with_separators (const
 VALA_EXTERN BobLauncherDescription* bob_launcher_file_match_generate_description_for_file (needle_info* si,
                                                                                const gchar* file_path,
                                                                                GDateTime* timestamp);
+VALA_EXTERN GFileInfo* bob_launcher_file_match_get_file_info (BobLauncherFileMatch* self);
 VALA_EXTERN BobLauncherFileMatch* bob_launcher_file_match_new_from_path (const gchar* filename);
 VALA_EXTERN BobLauncherFileMatch* bob_launcher_file_match_construct_from_path (GType object_type,
                                                                    const gchar* filename);
@@ -482,10 +515,16 @@ VALA_EXTERN BobLauncherDescription* bob_launcher_description_construct (GType ob
                                                             GDestroyNotify fragment_func_target_destroy_notify,
                                                             PangoAttrList* attrs);
 VALA_EXTERN BobLauncherDescription* bob_launcher_description_new_container (const gchar* css_class,
-                                                                GtkOrientation orientation);
+                                                                GtkOrientation orientation,
+                                                                BobLauncherFragmentFunc fragment_func,
+                                                                gpointer fragment_func_target,
+                                                                GDestroyNotify fragment_func_target_destroy_notify);
 VALA_EXTERN BobLauncherDescription* bob_launcher_description_construct_container (GType object_type,
                                                                       const gchar* css_class,
-                                                                      GtkOrientation orientation);
+                                                                      GtkOrientation orientation,
+                                                                      BobLauncherFragmentFunc fragment_func,
+                                                                      gpointer fragment_func_target,
+                                                                      GDestroyNotify fragment_func_target_destroy_notify);
 VALA_EXTERN void bob_launcher_description_add_child (BobLauncherDescription* self,
                                          BobLauncherDescription* child);
 VALA_EXTERN GType bob_launcher_source_match_get_type (void) G_GNUC_CONST ;
@@ -499,6 +538,8 @@ VALA_EXTERN GtkWidget* bob_launcher_match_get_tooltip (BobLauncherMatch* self);
 VALA_EXTERN GType bob_launcher_action_target_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherActionTarget, g_object_unref)
 VALA_EXTERN BobLauncherActionTarget* bob_launcher_action_target_construct (GType object_type);
+VALA_EXTERN BobLauncherMatch* bob_launcher_action_target_target_match (BobLauncherActionTarget* self,
+                                                           const gchar* query);
 VALA_EXTERN BobLauncherAction* bob_launcher_action_construct (GType object_type);
 VALA_EXTERN gboolean bob_launcher_action_do_execute (BobLauncherAction* self,
                                          BobLauncherMatch* source,
@@ -516,16 +557,11 @@ VALA_EXTERN BobLauncherUnknownMatch* bob_launcher_unknown_match_construct (GType
                                                                const gchar* query_string);
 VALA_EXTERN GType bob_launcher_plugin_base_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherPluginBase, g_object_unref)
-VALA_EXTERN GType bob_launcher_search_base_get_type (void) G_GNUC_CONST ;
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherSearchBase, g_object_unref)
 VALA_EXTERN gboolean bob_launcher_plugin_base_activate (BobLauncherPluginBase* self);
 VALA_EXTERN void bob_launcher_plugin_base_deactivate (BobLauncherPluginBase* self);
 VALA_EXTERN void bob_launcher_plugin_base_on_setting_changed (BobLauncherPluginBase* self,
                                                   const gchar* key,
                                                   GVariant* value);
-VALA_EXTERN gboolean bob_launcher_plugin_base_handle_base_settings (BobLauncherPluginBase* self,
-                                                        GSettings* settings,
-                                                        const gchar* key);
 VALA_EXTERN gchar* bob_launcher_plugin_base_get_mime_type (BobLauncherPluginBase* self);
 VALA_EXTERN gchar* bob_launcher_plugin_base_to_string (BobLauncherPluginBase* self);
 VALA_EXTERN void bob_launcher_plugin_base_find_for_match (BobLauncherPluginBase* self,
@@ -538,6 +574,8 @@ VALA_EXTERN void bob_launcher_plugin_base_set_bonus (BobLauncherPluginBase* self
 VALA_EXTERN gboolean bob_launcher_plugin_base_get_enabled (BobLauncherPluginBase* self);
 VALA_EXTERN void bob_launcher_plugin_base_set_enabled (BobLauncherPluginBase* self,
                                            gboolean value);
+VALA_EXTERN GType bob_launcher_search_base_get_type (void) G_GNUC_CONST ;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherSearchBase, g_object_unref)
 VALA_EXTERN GPtrArray* bob_launcher_plugin_base_get_search_providers (BobLauncherPluginBase* self);
 VALA_EXTERN void bob_launcher_plugin_base_set_search_providers (BobLauncherPluginBase* self,
                                                     GPtrArray* value);
@@ -590,7 +628,6 @@ VALA_EXTERN gchar* bob_launcher_utils_get_thumbnail_path (const gchar* file_path
                                               gint size);
 VALA_EXTERN gboolean bob_launcher_utils_launch_file (GFile* file);
 VALA_EXTERN void bob_launcher_utils_launch_app (GAppInfo* app_info);
-VALA_EXTERN void bob_launcher_utils_launch_uri (const gchar* uri);
 VALA_EXTERN gboolean bob_launcher_utils_is_all_lowercase (const gchar* str);
 VALA_EXTERN gchar* bob_launcher_utils_format_modification_time (GDateTime* now,
                                                     GDateTime* mod_time);

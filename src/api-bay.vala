@@ -98,7 +98,7 @@ namespace BobLauncher {
             }
         }
 
-        public class TorrentMatch : Match, ITextMatch, IURLMatch {
+        public class TorrentMatch : Match, ITextMatch, IURIMatch {
             public string info_hash { get; set; }
             public uint leechers { get; set; }
             public uint seeders { get; set; }
@@ -120,7 +120,6 @@ namespace BobLauncher {
                 return cleaned_name;
             }
 
-
             private string description;
             public override string get_description() {
                 return description;
@@ -130,7 +129,7 @@ namespace BobLauncher {
                 return this.uri;
             }
 
-            public string get_url() {
+            public string get_uri() {
                 return this.uri;
             }
 

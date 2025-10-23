@@ -478,9 +478,6 @@ namespace BobLauncher {
                     }
                 } else {
                     Score score = rs.match_score_spaceless(title);
-                    if (score < 0) {
-                        continue;
-                    }
                     rs.add_lazy(new_url.hash(), score, () => {
                         FirefoxItemType item_type = (source == "bookmark") ?
                                             FirefoxItemType.BOOKMARK : FirefoxItemType.HISTORY;

@@ -174,17 +174,17 @@ namespace BobLauncher {
             actions.add(new PauseTorrentAction());
             actions.add(new DeleteTorrentAction());
         }
+
         public override void on_setting_changed(string key, GLib.Variant value) {
-                remote_urls = value.get_strv();
-                for (int i = 0; i < remote_urls.length; i++) {
-                    debug("Transmission remote url: %s", remote_urls[i]);
-                }
+            remote_urls = value.get_strv();
+            for (int i = 0; i < remote_urls.length; i++) {
+                debug("Transmission remote url: %s", remote_urls[i]);
+            }
 
-                clients = new GenericArray<TransmissionClient>();
-                foreach (string url in remote_urls) {
-                    clients.add(new TransmissionClient(url));
-                }
-
+            clients = new GenericArray<TransmissionClient>();
+            foreach (string url in remote_urls) {
+                clients.add(new TransmissionClient(url));
+            }
         }
 
         public override bool activate() {

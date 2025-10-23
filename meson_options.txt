@@ -3,6 +3,7 @@
 
 option('plugin_api_bay',           type: 'combo', choices: ['0', '1', '2'], value: '2', description: 'API Bay plugin')
 option('plugin_calculator',        type: 'combo', choices: ['0', '1', '2'], value: '2', description: 'Calculator plugin')
+option('plugin_calendar',          type: 'combo', choices: ['0', '1', '2'], value: '2', description: 'Calendar plugin')
 option('plugin_chromium',          type: 'combo', choices: ['0', '1', '2'], value: '2', description: 'Chromium plugin')
 option('plugin_clipboard_manager', type: 'combo', choices: ['0', '1', '2'], value: '2', description: 'Clipboard manager plugin')
 option('plugin_command',           type: 'combo', choices: ['0', '1', '2'], value: '2', description: 'Command plugin')

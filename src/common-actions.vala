@@ -29,12 +29,6 @@ namespace BobLauncher {
         }
 
         private class Runner: Action {
-            private Cancellable cancellable;
-
-            construct {
-                cancellable = new Cancellable();
-            }
-
             public override string get_title() {
                 return "Run";
             }
@@ -91,15 +85,10 @@ namespace BobLauncher {
 
 
             protected override bool do_execute(Match match, Match? target = null) {
-                try {
-                    if (match is IDesktopApplication) {
-                        unowned IDesktopApplication app_match = (IDesktopApplication) match;
-                        return BobLaunchContext.get_instance().launch_app(app_match.get_desktop_appinfo(), true, null);
-                    } else {
-                        return false;
-                    }
-                } catch (Error err) {
-                    warning ("%s", err.message);
+                if (match is IDesktopApplication) {
+                    unowned IDesktopApplication app_match = (IDesktopApplication) match;
+                    return BobLaunchContext.get_instance().launch_app(app_match.get_desktop_appinfo(), true, null);
+                } else {
                     return false;
                 }
             }
@@ -135,11 +124,11 @@ namespace BobLauncher {
             protected override bool do_execute(Match match, Match? target = null) {
                 if (match is IFile) {
                     var file = ((IFile)match).get_file();
-                    BobLaunchContext.get_instance().launch_file(file);
-                    return true;
+                    return BobLaunchContext.get_instance().launch_file(file);
                 } else if (match is IURLMatch) {
-                    BobLaunchContext.get_instance().launch_uri(match.get_url());
-                    return true;
+                    return BobLaunchContext.get_instance().launch_uri(match.get_url());
+                } else if (match is IURIMatch) {
+                    return BobLaunchContext.get_instance().launch_uri(match.get_uri());
                 }
                 return false;
             }
@@ -151,6 +140,11 @@ namespace BobLauncher {
                 if (match is IURLMatch) {
                     return MatchScore.EXCELLENT;
                 }
+
+                if (match is IURIMatch) {
+                    return MatchScore.EXCELLENT;
+                }
+
                 bool can_open = (match is UnknownMatch && (web_uri.match (match.get_title()) || file_path.match (match.get_title())));
                 if (can_open) {
                     return MatchScore.EXCELLENT;

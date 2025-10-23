@@ -9,7 +9,7 @@
 
   <schema id="io.github.trbjo.bob.launcher.plugins" path="/io/github/trbjo/bob/launcher/plugins/">
     <child name="api-bay" schema="io.github.trbjo.bob.launcher.plugins.api-bay"/>
-    <child name="snippets" schema="io.github.trbjo.bob.launcher.plugins.snippets"/>
+    <child name="calendar" schema="io.github.trbjo.bob.launcher.plugins.calendar"/>
     <child name="calculator" schema="io.github.trbjo.bob.launcher.plugins.calculator"/>
     <child name="chromium" schema="io.github.trbjo.bob.launcher.plugins.chromium"/>
     <child name="clipboard-manager" schema="io.github.trbjo.bob.launcher.plugins.clipboard-manager"/>
@@ -26,9 +26,11 @@
     <child name="pass" schema="io.github.trbjo.bob.launcher.plugins.pass"/>
     <child name="pastebin" schema="io.github.trbjo.bob.launcher.plugins.pastebin"/>
     <child name="process-monitor" schema="io.github.trbjo.bob.launcher.plugins.process-monitor"/>
+    <child name="query-verbatim" schema="io.github.trbjo.bob.launcher.plugins.query-verbatim"/>
     <child name="recently-used" schema="io.github.trbjo.bob.launcher.plugins.recently-used"/>
     <child name="selection" schema="io.github.trbjo.bob.launcher.plugins.selection"/>
     <child name="ssh" schema="io.github.trbjo.bob.launcher.plugins.ssh"/>
+    <child name="snippets" schema="io.github.trbjo.bob.launcher.plugins.snippets"/>
     <child name="systemd-service" schema="io.github.trbjo.bob.launcher.plugins.systemd-service"/>
     <child name="tracker-search" schema="io.github.trbjo.bob.launcher.plugins.tracker-search"/>
     <child name="transmission" schema="io.github.trbjo.bob.launcher.plugins.transmission"/>
@@ -42,10 +44,6 @@
       <summary>Torrent Search</summary>
       <description>Search for torrents on api-bay</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.api-bay.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.api-bay.settings" path="/io/github/trbjo/bob/launcher/plugins/api-bay/settings/">
     <key name="regex-match" type="s">
       <default>"...+"</default>
       <summary>Character Threshold</summary>
@@ -67,6 +65,10 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.api-bay.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.api-bay.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/api-bay/custom-settings/">
     <key name="category-ids" type="ai">
       <default>[100, 300, 600]</default>
       <summary>Category IDs to search</summary>
@@ -80,10 +82,6 @@
       <summary>Snippets</summary>
       <description>Store Snippets</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.snippets.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.snippets.settings" path="/io/github/trbjo/bob/launcher/plugins/snippets/settings/">
     <key name="regex-match" type="s">
       <default>"...+"</default>
       <summary>Character Threshold</summary>
@@ -113,10 +111,6 @@
       <summary>Application Search</summary>
       <description>Search for and run applications on your computer.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.desktop-file.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.desktop-file.settings" path="/io/github/trbjo/bob/launcher/plugins/desktop-file/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -143,13 +137,9 @@
   <schema id="io.github.trbjo.bob.launcher.plugins.pass" path="/io/github/trbjo/bob/launcher/plugins/pass/">
     <key name="enabled" type="b">
       <default>true</default>
-      <summary>Pass Integration</summary>
+      <summary>Pass</summary>
       <description>Quickly place passwords from your password store in the clipboard.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.pass.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.pass.settings" path="/io/github/trbjo/bob/launcher/plugins/pass/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -179,10 +169,6 @@
       <summary>MPRIS</summary>
       <description>Control media playback.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.mpris.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.mpris.settings" path="/io/github/trbjo/bob/launcher/plugins/mpris/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -212,10 +198,6 @@
       <summary>Calculator</summary>
       <description>Calculate basic expressions.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.calculator.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.calculator.settings" path="/io/github/trbjo/bob/launcher/plugins/calculator/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -237,6 +219,39 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.calendar" path="/io/github/trbjo/bob/launcher/plugins/calendar/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Calendar</summary>
+      <description>Calculate basic expressions.</description>
+    </key>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.calendar.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.calendar.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/calendar/custom-settings/">
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.selection" path="/io/github/trbjo/bob/launcher/plugins/selection/">
@@ -278,10 +293,6 @@
       <summary>Command Search</summary>
       <description>Find and execute arbitrary commands.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.command.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.command.settings" path="/io/github/trbjo/bob/launcher/plugins/command/settings/">
     <key name="regex-match" type="s">
       <default>"..+"</default>
       <summary>Character Threshold</summary>
@@ -311,6 +322,12 @@
       <summary>Execute common actions</summary>
       <description>Find and execute arbitrary commands.</description>
     </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.ssh" path="/io/github/trbjo/bob/launcher/plugins/ssh/">
@@ -319,10 +336,6 @@
       <summary>SSH</summary>
       <description>Connect to host with SSH</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.ssh.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.ssh.settings" path="/io/github/trbjo/bob/launcher/plugins/ssh/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -352,10 +365,6 @@
       <summary>Downloads</summary>
       <description>View most recent downloads</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.downloads.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.downloads.settings" path="/io/github/trbjo/bob/launcher/plugins/downloads/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -385,10 +394,6 @@
       <summary>Tracker Search</summary>
       <description>Search for files and content with Gnome's tracker service</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.tracker-search.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.tracker-search.settings" path="/io/github/trbjo/bob/launcher/plugins/tracker-search/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -418,10 +423,6 @@
       <summary>Chromium</summary>
       <description>Browse and open Chromium bookmarks.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.chromium.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.chromium.settings" path="/io/github/trbjo/bob/launcher/plugins/chromium/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -451,10 +452,6 @@
       <summary>Firefox History</summary>
       <description>Search Firefox browsing history.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.firefox-history.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.firefox-history.settings" path="/io/github/trbjo/bob/launcher/plugins/firefox-history/settings/">
     <key name="regex-match" type="s">
       <default>"...+"</default>
       <summary>Character Threshold</summary>
@@ -484,10 +481,6 @@
       <summary>Clipboard Manager</summary>
       <description>Search and manage clipboard history.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.clipboard-manager.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.clipboard-manager.settings" path="/io/github/trbjo/bob/launcher/plugins/clipboard-manager/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -509,6 +502,10 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.clipboard-manager.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.clipboard-manager.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/clipboard-manager/custom-settings/">
     <key name="max-recent-entries" type="i">
       <default>15</default>
       <summary>Max recent clipboard entries</summary>
@@ -530,10 +527,6 @@
       <summary>Transmission Torrents</summary>
       <description>A plugin to show Transmission torrents.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.transmission.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.transmission.settings" path="/io/github/trbjo/bob/launcher/plugins/transmission/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -555,6 +548,10 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.transmission.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.transmission.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/transmission/custom-settings/">
     <key name="remote-urls" type="as">
       <summary>Remote Transmission URLs</summary>
       <description>List of remote URLs where Transmission is running</description>
@@ -568,10 +565,6 @@
       <summary>GNOME Bookmarks</summary>
       <description>Browse and open GNOME bookmarks.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.gnome-bookmarks.settings" path="/io/github/trbjo/bob/launcher/plugins/gnome-bookmarks/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -601,10 +594,6 @@
       <summary>Process Monitor</summary>
       <description>A plugin to show and search running processes.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.process-monitor.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.process-monitor.settings" path="/io/github/trbjo/bob/launcher/plugins/process-monitor/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -626,6 +615,10 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.process-monitor.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.process-monitor.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/process-monitor/custom-settings/">
     <key name="sort-by" enum="io.github.trbjo.bob.launcher.plugins.process-monitor.sort-method">
       <default>'pid'</default>
       <summary>Process sort order</summary>
@@ -639,10 +632,6 @@
       <summary>Recently Used</summary>
       <description>A plugin to show the most recently used files.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.recently-used.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.recently-used.settings" path="/io/github/trbjo/bob/launcher/plugins/recently-used/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -672,10 +661,6 @@
       <summary>Systemd User Services</summary>
       <description>Show and manage systemd services.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.systemd-service.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.systemd-service.settings" path="/io/github/trbjo/bob/launcher/plugins/systemd-service/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>
@@ -705,7 +690,42 @@
       <summary>File Operations</summary>
       <description>Copy, Cut, Paste and Delete files</description>
     </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
   </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.query-verbatim" path="/io/github/trbjo/bob/launcher/plugins/query-verbatim/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Add a default match</summary>
+    </key>
+    <key name="regex-match" type="s">
+      <default>".*"</default>
+      <summary>Character Threshold</summary>
+      <description>How many characters should be typed before the plugin starts searching.</description>
+    </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+    <key name="enabled-in-default" type="b">
+      <default>true</default>
+      <summary>Enabled in default search</summary>
+      <description>Whether this plugin should be searched when no plugins are selected</description>
+    </key>
+    <key name="update-interval" type="u">
+      <default>0</default>
+      <summary>Update Interval</summary>
+      <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
+    </key>
+  </schema>
+
 
   <schema id="io.github.trbjo.bob.launcher.plugins.imgur" path="/io/github/trbjo/bob/launcher/plugins/imgur/">
     <key name="enabled" type="b">
@@ -713,20 +733,20 @@
       <summary>Imgur</summary>
       <description>Share images using imgur.</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.imgur.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.imgur.settings" path="/io/github/trbjo/bob/launcher/plugins/imgur/settings/">
-    <key name="client-id" type="s">
-      <summary>The Client ID</summary>
-      <description>Register an account on imgur and put it here to use this plugin</description>
-      <default>''</default>
-    </key>
     <key name="bonus" type="i">
       <default>0</default>
       <range min="-8192" max="8191"/>
       <summary>Rank</summary>
       <description>Adds this rank to the score of the query.</description>
+    </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.imgur.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.imgur.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/imgur/custom-settings/">
+    <key name="client-id" type="s">
+      <summary>The Client ID</summary>
+      <description>Register an account on imgur and put it here to use this plugin</description>
+      <default>''</default>
     </key>
   </schema>
 
@@ -736,6 +756,12 @@
       <summary>Paste to c-net</summary>
       <description>Upload files to paste.c-net.org.</description>
     </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.file-search" path="/io/github/trbjo/bob/launcher/plugins/file-search/">
@@ -744,10 +770,6 @@
       <summary>File Search</summary>
       <description>Search your files</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.file-search.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.file-search.settings" path="/io/github/trbjo/bob/launcher/plugins/file-search/settings/">
     <key name="regex-match" type="s">
       <default>".+"</default>
       <summary>Character Threshold</summary>
@@ -769,6 +791,10 @@
       <summary>Update Interval</summary>
       <description>The update interval in milliseconds for this plugin. this setting has no effect when running with multiple plugins. Values lower than 1 disables this as well.</description>
     </key>
+    <child name="custom-settings" schema="io.github.trbjo.bob.launcher.plugins.file-search.custom-settings"/>
+  </schema>
+
+  <schema id="io.github.trbjo.bob.launcher.plugins.file-search.custom-settings" path="/io/github/trbjo/bob/launcher/plugins/file-search/custom-settings/">
     <key name="directory-configs" type="a(sibb)">
       <default>[('$HOME', 2, false, true)]</default>
       <summary>Directory Configurations</summary>
@@ -782,6 +808,13 @@
       <summary>URL shortener</summary>
       <description>Shorten long urls</description>
     </key>
+    <key name="bonus" type="i">
+      <default>0</default>
+      <range min="-8192" max="8191"/>
+      <summary>Rank</summary>
+      <description>Adds this rank to the score of the query.</description>
+    </key>
+
   </schema>
 
   <schema id="io.github.trbjo.bob.launcher.plugins.wifi" path="/io/github/trbjo/bob/launcher/plugins/wifi/">
@@ -790,10 +823,6 @@
       <summary>WiFi Manager</summary>
       <description>Connect and disconnect from you wifi networks</description>
     </key>
-    <child name="settings" schema="io.github.trbjo.bob.launcher.plugins.wifi.settings"/>
-  </schema>
-
-  <schema id="io.github.trbjo.bob.launcher.plugins.wifi.settings" path="/io/github/trbjo/bob/launcher/plugins/wifi/settings/">
     <key name="regex-match" type="s">
       <default>".*"</default>
       <summary>Character Threshold</summary>

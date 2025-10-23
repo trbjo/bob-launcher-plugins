@@ -42,10 +42,6 @@ namespace BobLauncher {
 
         private GenericArray<Action> service_actions;
 
-        public override void on_setting_changed(string key, GLib.Variant value) {
-            // message("SystemdServices: %s", key);
-        }
-
         public class SystemdServices : SearchBase {
             public override bool prefer_insertion_order { get { return true; } }
             private DBusConnection session_bus;
@@ -54,7 +50,6 @@ namespace BobLauncher {
             private BusType bus_type;
             private string title;
             private string description;
-            private string icon_name;
 
             public override string get_title() {
                 return this.title;
@@ -303,17 +298,6 @@ namespace BobLauncher {
             }
         }
 
-        private GenericArray<SearchBase> _search_providers;
-        public override GenericArray<SearchBase> search_providers {
-            get {
-                return _search_providers;
-            }
-            set {
-                _search_providers = value;
-            }
-        }
-
-
         construct {
             icon_name = "system-run";
             service_actions = new GenericArray<Action>();
@@ -488,7 +472,7 @@ namespace BobLauncher {
 
         public override bool activate() {
             SystemdServices? user = create_systemd_service_class(BusType.SESSION);
-            _search_providers = new GenericArray<SearchBase>();
+            var _search_providers = new GenericArray<SearchBase>();
             if (user != null) {
                 _search_providers.add(user);
             }
@@ -496,14 +480,8 @@ namespace BobLauncher {
             if (system != null) {
                 _search_providers.add(system);
             }
-            if (_search_providers.length == 0) {
-                return false;
-            }
-            return true;
-        }
-
-        public override void deactivate() {
-            _search_providers = new GenericArray<SearchBase>();
+            search_providers = _search_providers;
+            return _search_providers.length > 0;
         }
 
         public class SystemdUnitMatch : Match, IRichDescription {

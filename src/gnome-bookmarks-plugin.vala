@@ -48,10 +48,18 @@ namespace BobLauncher {
                     lines = contents.split ("\n");
                     foreach (unowned string line in lines) {
                         var parts = line.split (" ", 2);
-                        if (parts[0] == null)
+                        if (parts[0] == null) {
                             continue;
-                        if (parts[1] == null)
+                        }
+
+                        if (parts[1] == null) {
                             parts[1] = GLib.Path.get_basename (parts[0]);
+                        }
+
+                        var f = File.new_for_uri(parts[0]);
+                        if (!(f.query_exists())) {
+                            continue;
+                        }
 
                         bookmarks.add(new BookmarkMatch(parts[1], parts[0]));
                     }

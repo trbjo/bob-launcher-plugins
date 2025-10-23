@@ -70,6 +70,10 @@ namespace BobLauncher {
                 return MatchScore.LOWEST;
             }
 
+            public override Match target_match (string query) {
+                return new UnknownMatch(query);
+            }
+
             public override bool do_execute(Match source, Match? target = null) {
                 if (target == null) return false; // not possible
 

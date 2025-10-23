@@ -90,6 +90,10 @@ namespace BobLauncher {
             return BobLaunchContext.get_instance().launch_command(this.command, full_cmd, true, false);
         }
 
+        public bool is_directory() {
+            return false;
+        }
+
         public string get_uri() {
             if (_file == null) {
                 _file = File.new_for_path(this.filename);

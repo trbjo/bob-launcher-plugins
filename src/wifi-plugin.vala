@@ -40,9 +40,10 @@ namespace BobLauncher {
 
     [DBus (name = "net.connman.iwd.Agent")]
     public class WifiAgent : Object {
-        private WifiPlugin plugin;
+        private unowned WifiPlugin plugin;
 
         public WifiAgent(WifiPlugin plugin) {
+            Object();
             this.plugin = plugin;
         }
 
@@ -64,29 +65,37 @@ namespace BobLauncher {
     }
 
     public class WifiPlugin : SearchBase {
-        ObjectPath? agent_path;
+        public override bool prefer_insertion_order { get { return true; } }
+        static ObjectPath? agent_path;
+
+        static construct {
+            agent_path = new ObjectPath("/agent/BobLauncher");
+        }
 
         construct {
             icon_name = "network-wireless";
-            agent_path = new ObjectPath("/agent/BobLauncher");
         }
 
         private DBusObjectManager? manager = null;
         private DBusConnection? connection = null;
         private WifiAgent agent;
         private uint agent_registration_id;
-        private IwdAgentManager agent_manager;
+        private IwdAgentManager? agent_manager = null;
         public signal string password_requested(string network_path);
-        private bool initialization_done = false;
 
         public override bool activate() {
-            if (initialization_done) {
-                message("Already initialized, skipping activation");
+            if (agent_registration_id != 0) {
+                warning("Already initialized, skipping activation");
                 return true;
             }
 
             try {
                 connection = Bus.get_sync(BusType.SYSTEM);
+            } catch (Error e) {
+                warning("Failed to connect to dbus: %s", e.message);
+                return false;
+            }
+            try {
                 manager = new DBusObjectManagerClient.sync(
                     connection,
                     DBusObjectManagerClientFlags.NONE,
@@ -98,67 +107,49 @@ namespace BobLauncher {
 
                 try {
                     agent_manager = connection.get_proxy_sync<IwdAgentManager>("net.connman.iwd", "/net/connman/iwd");
-                    agent_manager.UnregisterAgent(agent_path);
                 } catch (Error e) {
-                    message("Agent not previously registered: %s", e.message);
+                    warning("IWD AgentManager: %s", e.message);
                 }
 
                 agent = new WifiAgent(this);
                 agent_registration_id = connection.register_object(agent_path, agent);
 
                 agent_manager.RegisterAgent(agent_path);
-                initialization_done = true;
-                message("initialization_done true;");
-
-                message("IWD agent registered successfully");
                 return true;
             } catch (Error e) {
                 warning("Failed to connect to iwd or register agent: %s", e.message);
-                if (connection != null && agent_registration_id != 0) {
+                if (agent_registration_id != 0) {
                     connection.unregister_object(agent_registration_id);
-                    agent_registration_id = 0;
                 }
+                agent_registration_id = 0;
                 return false;
             }
         }
 
         public override void deactivate() {
-            if (!initialization_done) {
-                return;
-            }
-            message("deactivate");
-
-            if (connection != null && agent_path != null) {
+            if (agent_manager != null) {
                 try {
                     agent_manager.UnregisterAgent(agent_path);
-                    message("IWD agent unregistered successfully");
                 } catch (Error e) {
                     warning("Failed to unregister agent from IWD: %s", e.message);
                 }
+                agent_manager = null;
             }
 
-            if (connection != null && agent_registration_id != 0) {
+            if (agent_registration_id != 0) {
                 connection.unregister_object(agent_registration_id);
                 agent_registration_id = 0;
-                message("Agent unregistered from D-Bus");
             }
 
-            if (connection != null) {
-                connection.close_sync();
-                connection = null;
-            }
-
+            connection = null;
             manager = null;
-            initialization_done = false;
-            message("initialization_done false;");
         }
 
 
-        private static uint32 nl80211_xbm_to_percent(int32 xbm, int32 divisor) {
+        private static uint32 nl80211_xbm_to_percent(int32 xbm) {
             const int NOISE_FLOOR_DBM = -90;
             const int SIGNAL_MAX_DBM = -20;
 
-            xbm /= divisor;
             if (xbm < NOISE_FLOOR_DBM)
                 xbm = NOISE_FLOOR_DBM;
             if (xbm > SIGNAL_MAX_DBM)
@@ -167,65 +158,59 @@ namespace BobLauncher {
             return (uint32)(100 - 70 * ((float)(SIGNAL_MAX_DBM - xbm) / (float)(SIGNAL_MAX_DBM - NOISE_FLOOR_DBM)));
         }
 
-        private void get_wifi_networks(ResultContainer rs, IwdStation station) {
+        private void get_wifi_networks(ResultContainer rs, IwdStation station) throws Error {
             if (!station.Scanning) {
-                try {
-                    station.Scan();
-                } catch(Error e) {
-                    warning(e.message);
-                }
+                station.Scan();
             }
             if (rs.is_cancelled()) return;
 
-            try {
-                var networks = station.GetOrderedNetworks();
-                for (uint i = 0; i < networks.length; i++) {
-                    if (rs.is_cancelled()) return;
-                    string object_path = networks[i].object_path;
-                    int16 signal_strength = networks[i].signal_strength;
+            var networks = station.GetOrderedNetworks();
+            for (uint i = 0; i < networks.length; i++) {
+                if (rs.is_cancelled()) return;
+                string object_path = networks[i].object_path;
+                int16 signal_strength = networks[i].signal_strength / 100; // convert to dBm from centi
 
-                    var network_interface = manager.get_interface(object_path, "net.connman.iwd.Network");
-                    if (network_interface != null) {
-                        var proxy = (DBusProxy)network_interface;
+                var network_interface = manager.get_interface(object_path, "net.connman.iwd.Network");
+                if (network_interface != null) {
+                    var proxy = (DBusProxy)network_interface;
 
-                        string ssid = "";
-                        var name_variant = proxy.get_cached_property("Name");
-                        if (name_variant != null && name_variant.is_of_type(VariantType.STRING)) {
-                            ssid = name_variant.get_string();
-                        }
-
-                        if (!rs.has_match(ssid)) {
-                            continue;
-                        }
-
-                        bool connected = false;
-                        var connected_variant = proxy.get_cached_property("Connected");
-                        if (connected_variant != null && connected_variant.is_of_type(VariantType.BOOLEAN)) {
-                            connected = connected_variant.get_boolean();
-                        }
-
-                        Score score;
-                        if (connected) {
-                            score = MatchScore.HIGHEST;
-                        } else if (is_known_network(object_path)) {
-                            score = MatchScore.HIGHEST+(Score)signal_strength;
-                        } else {
-                            score = MatchScore.HIGHEST - MatchScore.EXCELLENT + (Score)signal_strength;
-                        }
-
-                        rs.add_lazy(object_path.hash(), score, () => {
-                            string security_type = "Unknown";
-                            var type_variant = proxy.get_cached_property("Type");
-                            if (type_variant != null && type_variant.is_of_type(VariantType.STRING)) {
-                                security_type = type_variant.get_string();
-                            }
-                            return new WifiNetwork(ssid, object_path, connected, signal_strength, security_type, score);
-                        });
+                    string ssid = "";
+                    var name_variant = proxy.get_cached_property("Name");
+                    if (name_variant != null && name_variant.is_of_type(VariantType.STRING)) {
+                        ssid = name_variant.get_string();
                     }
+
+                    if (!rs.has_match(ssid)) {
+                        continue;
+                    }
+
+                    bool connected = false;
+                    var connected_variant = proxy.get_cached_property("Connected");
+                    if (connected_variant != null && connected_variant.is_of_type(VariantType.BOOLEAN)) {
+                        connected = connected_variant.get_boolean();
+                    }
+
+                    Score score;
+                    if (connected) {
+                        score = MatchScore.HIGHEST;
+                    } else if (is_known_network(object_path)) {
+                        score = MatchScore.HIGHEST+(Score)signal_strength;
+                    } else {
+                        score = MatchScore.HIGHEST - MatchScore.EXCELLENT + (Score)signal_strength;
+                    }
+
+                    rs.add_lazy(object_path.hash(), score, () => {
+                        string security_type = "Unknown";
+                        var type_variant = proxy.get_cached_property("Type");
+                        if (type_variant != null && type_variant.is_of_type(VariantType.STRING)) {
+                            security_type = type_variant.get_string();
+                        }
+                        return new WifiNetwork(ssid, object_path, connected, signal_strength, security_type, score);
+                    });
                 }
-            } catch (Error e) {
-                warning("Failed to get ordered networks: %s", e.message);
             }
+
+
         }
 
         public async void forget_network(string object_path) {
@@ -342,7 +327,7 @@ namespace BobLauncher {
             }
 
             private static string get_signal_strength_string(int16 strength) {
-                uint32 percentage = nl80211_xbm_to_percent(strength, 100);
+                uint32 percentage = nl80211_xbm_to_percent(strength);
 
                 string description = percentage >= 80 ? "Excellent" :
                                      percentage >= 60 ? "Good" :
@@ -354,7 +339,7 @@ namespace BobLauncher {
         }
 
         private class ConnectOpenAction: Action {
-            private WifiPlugin plugin;
+            private unowned WifiPlugin plugin;
 
             private string network_name;
             public override string get_title() {
@@ -369,6 +354,7 @@ namespace BobLauncher {
             }
 
             public ConnectOpenAction(WifiPlugin plugin, string network_name) {
+                Object();
                 this.network_name = network_name;
                 this.plugin = plugin;
             }
@@ -377,7 +363,7 @@ namespace BobLauncher {
                 if (match is WifiNetwork && !((WifiNetwork)match).is_connected) {
                     return MatchScore.EXCELLENT;
                 }
-                return MatchScore.LOWEST;
+                return MatchScore.ABOVE_THRESHOLD;
             }
 
             public override bool do_execute(Match source, Match? target = null) {
@@ -391,7 +377,7 @@ namespace BobLauncher {
         }
 
         private class ConnectSecuredAction : ActionTarget {
-            private WifiPlugin plugin;
+            private unowned WifiPlugin plugin;
             private string network_path;
             private string network_password;
 
@@ -409,6 +395,7 @@ namespace BobLauncher {
 
 
             public ConnectSecuredAction(WifiPlugin plugin, string network_name, string network_path) {
+                Object();
                 this.plugin = plugin;
                 this.network_name = network_name;
                 this.network_path = network_path;
@@ -433,22 +420,31 @@ namespace BobLauncher {
             }
 
             public override Score get_relevancy(Match match) {
-                if (match is WifiNetwork && !((WifiNetwork)match).is_connected) {
+                if (!(match is WifiNetwork)) {
+                    return MatchScore.LOWEST;
+                }
+
+                if (!((WifiNetwork)match).is_connected) {
                     return MatchScore.EXCELLENT;
                 }
-                return MatchScore.LOWEST;
+                return MatchScore.ABOVE_THRESHOLD;
             }
+
+            public override Match target_match (string query) {
+                return new UnknownMatch(query); // TODO: create proper wifi target
+            }
+
         }
 
         private class DisconnectAction: Action {
-            private WifiPlugin plugin;
+            private unowned WifiPlugin plugin;
             private string network_name;
             public override string get_title() {
-                return "Disconnect from " + network_name;
+                return "Disconnect the current Wi-Fi network";
             }
 
             public override string get_description() {
-                return "Disconnect from the current Wi-Fi network";
+                return "Disconnect from \"" + network_name + "\"";
             }
             public override string get_icon_name() {
                 return "network-wireless-offline";
@@ -456,14 +452,21 @@ namespace BobLauncher {
 
 
             public DisconnectAction(WifiPlugin plugin, string network_name) {
+                Object();
                 this.plugin = plugin;
+                this.network_name = network_name;
             }
 
             public override Score get_relevancy(Match match) {
-                if (match is WifiNetwork && ((WifiNetwork)match).is_connected) {
+                if (!(match is WifiNetwork)) {
+                    return MatchScore.LOWEST;
+                }
+
+                if (((WifiNetwork)match).is_connected) {
                     return MatchScore.EXCELLENT;
                 }
-                return MatchScore.LOWEST;
+
+                return MatchScore.ABOVE_THRESHOLD;
             }
 
             public override bool do_execute(Match source, Match? target = null) {
@@ -490,6 +493,7 @@ namespace BobLauncher {
             }
 
             public ForgetNetworkAction(WifiPlugin plugin, string network_name) {
+                Object();
                 this.plugin = plugin;
             }
 
@@ -511,26 +515,26 @@ namespace BobLauncher {
         }
 
         public override void find_for_match(Match match, ActionSet rs) {
-            if (!(match is WifiNetwork)) {
+            var wifi_network = match as WifiNetwork;
+            if (wifi_network == null) {
                 return;
             }
 
-            var wifi_network = (WifiNetwork)match;
-
-            Action action;
+            string ssid = wifi_network.get_title();
+            unowned string op = wifi_network.object_path;
 
             if (wifi_network.is_connected) {
-                action = new DisconnectAction(this, wifi_network.get_title());
-            } else if (network_needs_password(wifi_network.object_path)) {
-                action = new ConnectSecuredAction(this, wifi_network.get_title(), wifi_network.object_path);
+                rs.add_action(new DisconnectAction(this, ssid));
+            } else if (network_needs_password(op)) {
+                rs.add_action(new ConnectSecuredAction(this, ssid, op));
             } else {
-                action = new ConnectOpenAction(this, wifi_network.get_title());
+                rs.add_action(new ConnectOpenAction(this, ssid));
             }
 
-            rs.add_action(action);
+
 
             if (is_known_network(wifi_network.object_path)) {
-                var forget_action = new ForgetNetworkAction(this, wifi_network.get_title());
+                var forget_action = new ForgetNetworkAction(this, ssid);
                 rs.add_action(forget_action);
             }
         }

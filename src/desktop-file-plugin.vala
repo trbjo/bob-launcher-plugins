@@ -67,6 +67,9 @@ namespace BobLauncher {
         }
 
         private class MimeTypeChange: ActionTarget {
+            public override Match target_match (string query) {
+                return new UnknownMatch(query);
+            }
 
             private string handled_mime_type;
             public unowned DesktopFileService dfs { get; construct; }

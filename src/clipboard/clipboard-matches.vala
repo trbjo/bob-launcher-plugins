@@ -317,7 +317,7 @@ namespace BobLauncher {
         }
 
         public override Score get_relevancy(Match m) {
-            if (!(m is ClipboardMatch)) return MatchScore.NONE;
+            if (!(m is ClipboardMatch)) return MatchScore.BELOW_THRESHOLD;
             return MatchScore.ABOVE_THRESHOLD;
         }
 
@@ -341,7 +341,7 @@ namespace BobLauncher {
         }
 
         public override Score get_relevancy(Match match) {
-            if (!(match is ClipboardMatch)) return MatchScore.NONE;
+            if (!(match is ClipboardMatch)) return MatchScore.BELOW_THRESHOLD;
             return MatchScore.VERY_GOOD;
         }
 

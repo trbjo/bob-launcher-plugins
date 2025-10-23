@@ -1,5 +1,4 @@
-#ifndef RESULT_CONTAINER_H
-#define RESULT_CONTAINER_H
+#pragma once
 
 #include <stdbool.h>
 #include <stdatomic.h>
@@ -14,7 +13,7 @@ typedef BobLauncherMatch* (*MatchFactory)(void* user_data);
 #define BITMAP_SIZE 256
 
 #define MAX_SHEETS 256          // 2^8
-#define RESULTS_PER_SHEET 512   // 2^9
+#define SHEET_SIZE 512   // 2^9
 // max number of sheets = 256 * 512 = 131072
 
 #define HASH_BITS 32
@@ -39,7 +38,7 @@ typedef BobLauncherMatch* (*MatchFactory)(void* user_data);
     (((uint64_t)(item_index) << ITEM_SHIFT) | \
      ((uint64_t)(sheet_index) << SHEET_SHIFT) | \
      ((uint64_t)(hash) << HASH_SHIFT) | \
-     ((uint64_t)((relevancy) + 1024) << RELEVANCY_SHIFT))
+     ((uint64_t)((int64_t)((relevancy) + 1024)) << RELEVANCY_SHIFT))
 
 #define ITEM_IDX(packed) (((packed) >> ITEM_SHIFT) & ((1ULL << ITEM_BITS) - 1))
 #define SHEET_IDX(packed) (((packed) >> SHEET_SHIFT) & ((1ULL << SHEET_BITS) - 1))
@@ -79,23 +78,22 @@ typedef struct MatchNode {
 } MatchNode;
 
 typedef struct ResultSheet {
-    uint64_t match_pool[RESULTS_PER_SHEET];
+    uint64_t match_pool[SHEET_SIZE];
+    uint64_t duplicate_bits[SHEET_SIZE / 64];
     size_t size;
     int global_index;
 } __attribute__((aligned(8))) ResultSheet;
 
 typedef struct ResultContainer {
-    // Group 1: Thread-local working data
-    ResultSheet* current_sheet;
+    uint64_t* items;
+    size_t size;
+    size_t items_capacity;
     ResultSheet** sheet_pool;
 
-    // Group 2: Queue pointer
-    ResultSheet*** read;
+    ResultSheet* current_sheet;
 
-    // Group 3: Item data
-    uint64_t* items;
-    size_t items_capacity;
-    size_t size;
+    // Queue pointer
+    ResultSheet*** read;
 
     // Group 4: Query-related data
     needle_info* string_info;
@@ -115,6 +113,7 @@ typedef struct ResultContainer {
 
     // Track merges for heuristic memory allocation
     int merges;
+    int16_t bonus;
 
     int match_mre_idx;
     int destroy_mre_idx;
@@ -132,7 +131,7 @@ const char* result_container_get_query(ResultContainer* container);
 #define result_container_match_score(container, haystack) match_score(((ResultContainer*)container)->string_info, haystack)
 #define result_container_match_score_spaceless(container, haystack) match_score(((ResultContainer*)container)->string_info_spaceless, haystack)
 
-extern int events_ok(unsigned int event_id);
+extern int events_ok(int event_id);
 #define result_container_is_cancelled(container) (!events_ok(((ResultContainer*)(container))->event_id))
 
 #define result_container_add_lazy_unique(container, relevancy, factory, factory_user_data, destroy_notify) \
@@ -141,4 +140,3 @@ extern int events_ok(unsigned int event_id);
 #define result_container_add_lazy(container, hash, relevancy, func, factory_user_data, destroy_notify) \
     result_container_insert(container, hash, relevancy, func, factory_user_data, destroy_notify)
 
-#endif /* RESULT_CONTAINER_H */

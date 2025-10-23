@@ -59,8 +59,6 @@ namespace BobLauncher {
 		[CCode (cheader_filename = "bob-launcher.h")]
 		public static bool launch_file (GLib.File file);
 		[CCode (cheader_filename = "bob-launcher.h")]
-		public static void launch_uri (string uri);
-		[CCode (cheader_filename = "bob-launcher.h")]
 		public static void open_command_line (string command, string? app_name = null, bool needs_terminal = false, string? working_dir = null);
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
@@ -73,6 +71,7 @@ namespace BobLauncher {
 	[CCode (cheader_filename = "bob-launcher.h")]
 	public abstract class ActionTarget : BobLauncher.Action {
 		protected ActionTarget ();
+		public abstract BobLauncher.Match target_match (string query);
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
 	public class BobLaunchContext : GLib.Object {
@@ -96,7 +95,7 @@ namespace BobLauncher {
 		public const int spacing;
 		public Description (string text, string css_class, BobLauncher.FragmentType fragment_type = FragmentType.TEXT, owned BobLauncher.FragmentFunc? fragment_func = null, Pango.AttrList? attrs = null);
 		public void add_child (BobLauncher.Description child);
-		public Description.container (string css_class = "", Gtk.Orientation orientation = Gtk.Orientation.HORIZONTAL);
+		public Description.container (string css_class = "", Gtk.Orientation orientation = Gtk.Orientation.HORIZONTAL, owned BobLauncher.FragmentFunc? fragment_func = null);
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
 	public class FileMatch : BobLauncher.Match, BobLauncher.IFile, BobLauncher.IRichDescription {
@@ -106,6 +105,7 @@ namespace BobLauncher {
 		public FileMatch.from_uri (string uri);
 		public static BobLauncher.Description generate_description_for_file (Levensteihn.StringInfo si, string file_path, GLib.DateTime? timestamp);
 		public override string get_description ();
+		public GLib.FileInfo get_file_info ();
 		public override string get_icon_name ();
 		public override string get_title ();
 		public override unowned Gtk.Widget? get_tooltip ();
@@ -144,17 +144,15 @@ namespace BobLauncher {
 		public override string get_icon_name ();
 		public string get_mime_type ();
 		public override string get_title ();
-		public virtual bool handle_base_settings (GLib.Settings settings, string key);
 		public virtual void on_setting_changed (string key, GLib.Variant value);
 		public virtual string to_string ();
 		public int16 bonus { get; set; }
 		public bool enabled { get; set; }
-		public virtual GLib.GenericArray<BobLauncher.SearchBase> search_providers { get; set; }
+		public GLib.GenericArray<BobLauncher.SearchBase> search_providers { get; protected set; }
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
 	public abstract class SearchBase : BobLauncher.PluginBase {
 		protected SearchBase ();
-		protected override bool handle_base_settings (GLib.Settings settings, string key);
 		protected virtual void search (BobLauncher.ResultContainer rs);
 		public virtual void search_shard (BobLauncher.ResultContainer rs, uint shard_id);
 		public GLib.Regex compiled_regex { get; }
@@ -170,7 +168,7 @@ namespace BobLauncher {
 		public signal void executed (bool success);
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
-	public class UnknownMatch : BobLauncher.Match {
+	public class UnknownMatch : BobLauncher.Match, BobLauncher.ITextMatch {
 		public UnknownMatch (string query_string);
 		public override string get_description ();
 		public override string get_icon_name ();
@@ -193,14 +191,23 @@ namespace BobLauncher {
 		public abstract string get_file_path ();
 		public abstract string get_mime_type ();
 		public abstract string get_uri ();
+		public abstract bool is_directory ();
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
 	public interface IRichDescription : BobLauncher.Match {
 		public abstract unowned BobLauncher.Description get_rich_description (Levensteihn.StringInfo si);
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
+	public interface IRichIcon : BobLauncher.Match {
+		public abstract unowned Gtk.Widget get_rich_icon ();
+	}
+	[CCode (cheader_filename = "bob-launcher.h")]
 	public interface ITextMatch : GLib.Object {
 		public abstract string get_text ();
+	}
+	[CCode (cheader_filename = "bob-launcher.h")]
+	public interface IURIMatch : GLib.Object {
+		public abstract string get_uri ();
 	}
 	[CCode (cheader_filename = "bob-launcher.h")]
 	public interface IURLMatch : GLib.Object {

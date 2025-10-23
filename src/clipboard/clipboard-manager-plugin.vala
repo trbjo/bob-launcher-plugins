@@ -155,16 +155,14 @@ namespace BobLauncher {
             for (int i = 0; i < entries_array.length; i++) {
                 unowned ClipboardHash.Entry entry = entries_array[i];
                 Score score = rs.match_score(entry.text);
-                if (score > 0) {
-                    rs.add_lazy_unique(score, () => {
-                        return new ClipboardMatch(
-                            entry.primkey,
-                            entry.text,
-                            entry.timestamp,
-                            entry.content_type
-                        );
-                    });
-                }
+                rs.add_lazy_unique(score, () => {
+                    return new ClipboardMatch(
+                        entry.primkey,
+                        entry.text,
+                        entry.timestamp,
+                        entry.content_type
+                    );
+                });
             }
         }
     }
@@ -232,8 +230,8 @@ namespace BobLauncher {
 
             db = new Clipboard.Database(this);
             timestamp_offset = db.calculate_timestamp_offset();
-            ClipboardTreeManager.initialize(128);
-            base.shard_count = 128;
+            ClipboardTreeManager.initialize(32);
+            base.shard_count = 32;
 
             load_recent_entries();
 
@@ -376,7 +374,9 @@ namespace BobLauncher {
         }
 
         protected override void search_shard(ResultContainer rs, uint shard_id) {
-            if (rs.get_query() == "" && shard_id == 0) {
+            if (rs.get_query() != "") {
+                ClipboardTreeManager.search_shard(rs, shard_id);
+            } else if (shard_id == 0) {
                 int16 base_score = MatchScore.ABOVE_THRESHOLD;
                 unowned ClipboardHash.Entry[] recent_array = recent_entries.get_entries();
                 int length = (int)recent_array.length;
@@ -392,8 +392,6 @@ namespace BobLauncher {
                         )
                     );
                 }
-            } else {
-                ClipboardTreeManager.search_shard(rs, shard_id);
             }
         }
 
