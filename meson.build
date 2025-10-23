@@ -51,6 +51,7 @@ plugins = {
         'src/calendar/calendar-match-main.vala',
         'src/calendar/calendar-match-edit-title.vala',
         'src/calendar/calendar-match-edit-description.vala',
+        'src/calendar/calendar-event-tooltip.vala',
         'src/calendar/calendar-match-helper.vala',
         'src/calendar/calendar-search.vala',
         'src/calendar/calendar-service.vapi',
