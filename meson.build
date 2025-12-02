@@ -185,7 +185,7 @@ install_data(
 )
 
 c_sources = files(
-    'src/gthread_stub.c'
+    'vapi/gthread_stub.c'
 )
 
 compile_schemas = custom_target('glib-compile-schemas-plugins',
