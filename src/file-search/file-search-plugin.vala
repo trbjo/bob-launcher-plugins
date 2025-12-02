@@ -102,7 +102,14 @@ namespace BobLauncher {
 
         private void on_file_changed(string path, int event_type) {
             if (Threading.atomic_load(ref cancelled) == 1) return;
+            // since there is a fixed number of slots, we'll use glib's scheduler
+            Idle.add(() => {
+                Threading.run(() => _on_file_changed(path, event_type));
+                return false;
+            }, GLib.Priority.LOW);
+        }
 
+        private void _on_file_changed(string path, int event_type) {
             DirectoryConfig? config = find_best_dc(path);
             if (config == null) return;
 
@@ -113,12 +120,19 @@ namespace BobLauncher {
                 if (rel_path[i] == '/') depth++;
             }
 
-            queue_directory(
-                path,
-                config,
-                depth,
-                new GenericArray<string>()
-            );
+            bool is_deleted =
+                ((event_type & INotify.EventType.DELETE) != 0 ||
+                 (event_type & INotify.EventType.DELETE_SELF) != 0 ||
+                 (event_type & INotify.EventType.MOVED_FROM) != 0)
+                    ? true
+                    : false;
+
+            if (is_deleted) {
+                handle_file_delete(path);
+            } else {
+                var work = new DirectoryWork(path, config, depth, new GenericArray<string>());
+                handle_file_change(work);
+            }
         }
 
         private DirectoryConfig? find_best_dc(string path) {
@@ -211,6 +225,10 @@ namespace BobLauncher {
         }
 
         private void handle_file_change(DirectoryWork work) {
+            if (should_ignore_file(work.path)) {
+                return;
+            }
+
             FileTreeManager.add_file(work.path);
 
             if (work.depth >= work.config.max_depth) {
@@ -268,21 +286,16 @@ namespace BobLauncher {
         }
 
         private void handle_file_delete(string path) {
+            monitor.remove_path(path);
             FileTreeManager.remove_file(path);
 
             for (uint i = 0; i < this.shard_count; i++) {
                 uint shard_id = i;
                 Threading.run(() => FileTreeManager.remove_by_prefix_shard(shard_id, path));
             }
-
-            monitor.remove_path(path);
         }
 
         private void process_directory(DirectoryWork work) {
-            if (should_ignore_file(work.path)) {
-                return;
-            }
-
             if (FileUtils.test(work.path, FileTest.EXISTS)) {
                 handle_file_change(work);
             } else {
