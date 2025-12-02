@@ -126,7 +126,7 @@ namespace BobLauncher {
                 return BobLaunchContext.get_instance().launch_command(ssh, argv, false, true);
             }
             public override string get_title() {
-                return "SSH to " + host_query;
+                return "SSH: " + host_query;
             }
             public override string get_description() {
                 return "Connect with SSH";
