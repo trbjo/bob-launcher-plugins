@@ -70,7 +70,7 @@ namespace BobLauncher {
         private uint num_shards;
 
         public override bool activate() {
-            num_shards = (uint)GLib.get_num_processors();
+            num_shards = (uint)8;
             base.shard_count = num_shards;
 
             shard_dbs = new Sqlite.Database[num_shards];
