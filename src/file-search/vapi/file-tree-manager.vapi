@@ -1,7 +1,7 @@
 [CCode (cheader_filename = "file-tree-manager.h")]
 namespace FileTreeManager {
     [CCode (cname = "file_tree_manager_initialize")]
-    public void initialize(int shards, string prefix);
+    public void initialize(int shards);
 
     [CCode (cname = "file_tree_manager_add_file")]
     public void add_file(string path);

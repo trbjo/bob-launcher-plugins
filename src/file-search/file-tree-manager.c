@@ -17,8 +17,6 @@ typedef struct {
 
 static ShardData* shards = NULL;
 static unsigned int num_shards = 0;
-static char* global_prefix = NULL;  // Store prefix globally for convenience
-static unsigned int global_prefix_len = 0;
 
 static char* string_duplicate(const char* str) {
     if (!str) return NULL;
@@ -43,55 +41,38 @@ static inline void spin_unlock(atomic_int* lock) {
 
 // Convert absolute path to relative by stripping prefix
 static inline const char* make_relative(const char* absolute_path) {
-    if (global_prefix_len > 0 &&
-        strncmp(absolute_path, global_prefix, global_prefix_len) == 0) {
-        return absolute_path + global_prefix_len;
-    }
+    return absolute_path;
+    // FIX
+
+    // if (global_prefix_len > 0 &&
+    //     strncmp(absolute_path, global_prefix, global_prefix_len) == 0) {
+    //     return absolute_path + global_prefix_len;
+    // }
     return absolute_path;
 }
 
 // Convert relative path to absolute by adding prefix
 static char* make_absolute(const char* relative_path) {
-    if (!global_prefix || global_prefix_len == 0) {
-        return string_duplicate(relative_path);
-    }
+    return relative_path;
+    // if (!global_prefix || global_prefix_len == 0) {
+    //     return string_duplicate(relative_path);
+    // }
 
-    size_t rel_len = strlen(relative_path);
-    char* absolute = malloc(global_prefix_len + rel_len + 1);
-    if (absolute) {
-        memcpy(absolute, global_prefix, global_prefix_len);
-        memcpy(absolute + global_prefix_len, relative_path, rel_len + 1);
-    }
-    return absolute;
+    // size_t rel_len = strlen(relative_path);
+    // char* absolute = malloc(global_prefix_len + rel_len + 1);
+    // if (absolute) {
+    //     memcpy(absolute, global_prefix, global_prefix_len);
+    //     memcpy(absolute + global_prefix_len, relative_path, rel_len + 1);
+    // }
+    // return absolute;
 }
 
 static unsigned int get_shard_index(const char* path);
 static int has_suffix(const char* str, const char* suffix);
 
-void file_tree_manager_initialize(int shard_count, const char* prefix) {
+void file_tree_manager_initialize(int shard_count) {
     num_shards = shard_count;
 
-    if (prefix && *prefix) {
-        size_t len = strlen(prefix);
-        // Add trailing slash if not present
-        if (prefix[len - 1] != '/') {
-            global_prefix = malloc(len + 2);
-            if (global_prefix) {
-                memcpy(global_prefix, prefix, len);
-                global_prefix[len] = '/';
-                global_prefix[len + 1] = '\0';
-                global_prefix_len = len + 1;
-            }
-        } else {
-            global_prefix = string_duplicate(prefix);
-            global_prefix_len = len;
-        }
-    } else {
-        global_prefix = NULL;
-        global_prefix_len = 0;
-    }
-
-    // Allocate and initialize cache-aligned shards
     shards = NULL;
     if (posix_memalign((void**)&shards, CACHE_LINE_SIZE,
                      num_shards * sizeof(ShardData)) != 0) {
@@ -164,11 +145,11 @@ static inline BobLauncherMatch* custom_factory_func(void *user_data) {
 
     if (!relative_path) return NULL;
 
-    char* absolute_path = make_absolute(relative_path);
-    if (!absolute_path) return NULL;
+    // char* absolute_path = make_absolute(relative_path);
+    // if (!absolute_path) return NULL;
 
-    BobLauncherMatch* match = (BobLauncherMatch*)bob_launcher_file_match_new_from_path(absolute_path);
-    free(absolute_path);
+    BobLauncherMatch* match = (BobLauncherMatch*)bob_launcher_file_match_new_from_path(relative_path);
+    // free(absolute_path);
 
     return match;
 }
@@ -280,11 +261,5 @@ void file_tree_manager_cleanup(void) {
         }
         free(shards);
         shards = NULL;
-    }
-
-    if (global_prefix) {
-        free(global_prefix);
-        global_prefix = NULL;
-        global_prefix_len = 0;
     }
 }
