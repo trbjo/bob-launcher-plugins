@@ -57,7 +57,7 @@ plugins = {
         'src/calendar/calendar-service.vapi',
         'src/calendar/calendar_service.c',
         'src/calendar/calendar_service.h'
-  ),
+    ),
     'chromium': files('src/chromium-plugin.vala'),
     'clipboard-manager': files(
         'src/clipboard/clipboard-manager-plugin.vala',
@@ -124,7 +124,7 @@ plugin_specific_deps = {
 
 plugin_install_dir = join_paths(get_option('libdir'), project_name)
 
-inc_dirs = [ ]
+inc_dirs = []
 
 plugin_vala_args = [
     '--vapidir=' + join_paths(meson.current_source_dir(), 'vapi'),
@@ -184,8 +184,11 @@ install_data(
     install_dir: join_paths(get_option('datadir'), 'glib-2.0', 'schemas')
 )
 
-# Compile schemas
-compile_schemas = custom_target('glib-compile-schemas',
+c_sources = files(
+    'src/gthread_stub.c'
+)
+
+compile_schemas = custom_target('glib-compile-schemas-plugins',
     build_by_default: true,
     output: 'gschemas.compiled',
     command: [
@@ -196,7 +199,6 @@ compile_schemas = custom_target('glib-compile-schemas',
 )
 
 foreach plugin_name, sources : plugins
-    # Start with common dependencies
     plugin_deps = []
     plugin_sources = sources
 
@@ -214,34 +216,23 @@ foreach plugin_name, sources : plugins
         endforeach
     endif
 
-    optimization_flags = [
-        # '-O2',                   # Base optimization level
-        # '-march=native',         # CPU-specific optimizations
-        # '-fno-plt',              # For function pointer calls
-        # '-fno-stack-protector',  # Remove stack protection overhead
-        # '-funroll-loops',        # Unroll loops
-        # '-flto',                 # Link-time optimization
-        '-ffast-math',           # Fast math operations
-        '-fno-plt',              # Better indirect calls
-        '-ftree-vectorize',      # Enable vectorization
-    ]
-
     shared_module(plugin_name,
-        plugin_sources,
+        plugin_sources + c_sources,
         name_prefix: 'lib-',
         name_suffix: 'so',
         dependencies: plugin_deps,
         install: true,
         install_dir: plugin_install_dir,
         include_directories: inc_dirs,
-        c_args: common_c_args + optimization_flags + [
+        c_args: common_c_args + [
             '-I/usr/include/xxhash',
             '-D_GNU_SOURCE',
+            '-include', join_paths(meson.current_source_dir(), 'vapi/no-thread-init.h'),
             '-include', join_paths(meson.current_source_dir(), 'vapi/xxhash-override.h'),
             '-I' + join_paths(meson.current_source_dir(), 'vapi'),
         ],
         link_args: common_link_args
-         + (plugin_name == 'calendar' ? ['-lical', '-lpthread'] : []),
+            + (plugin_name == 'calendar' ? ['-lical', '-lpthread'] : []),
         vala_args: common_vala_args + plugin_vala_args
     )
 endforeach

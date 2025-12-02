@@ -92,7 +92,6 @@ namespace BobLauncher {
 		public BobLauncher.FragmentType fragment_type;
 		public Gtk.Orientation orientation;
 		public string text;
-		public const int spacing;
 		public Description (string text, string css_class, BobLauncher.FragmentType fragment_type = FragmentType.TEXT, owned BobLauncher.FragmentFunc? fragment_func = null, Pango.AttrList? attrs = null);
 		public void add_child (BobLauncher.Description child);
 		public Description.container (string css_class = "", Gtk.Orientation orientation = Gtk.Orientation.HORIZONTAL, owned BobLauncher.FragmentFunc? fragment_func = null);
