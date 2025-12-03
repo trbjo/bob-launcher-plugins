@@ -77,7 +77,7 @@ namespace BobLauncher {
         }
 
         public override bool activate() {
-            const int num_shards = 32;
+            const int num_shards = 128;
             // TODO: make configurable and dynamic.
 
             base.shard_count = num_shards;
@@ -89,7 +89,7 @@ namespace BobLauncher {
 
             var configs = get_directory_configs_sorted();
             foreach (unowned var cfg in configs) {
-                queue_directory(
+                queue_addition(
                     cfg.path,
                     cfg,
                     0,
@@ -102,23 +102,6 @@ namespace BobLauncher {
 
         private void on_file_changed(string path, int event_type) {
             if (Threading.atomic_load(ref cancelled) == 1) return;
-            // since there is a fixed number of slots, we'll use glib's scheduler
-            Idle.add(() => {
-                Threading.run(() => _on_file_changed(path, event_type));
-                return false;
-            }, GLib.Priority.LOW);
-        }
-
-        private void _on_file_changed(string path, int event_type) {
-            DirectoryConfig? config = find_best_dc(path);
-            if (config == null) return;
-
-            int depth = 0;
-            string rel_path = path.substring(config.path.length);
-
-            for (int i = 0; i < rel_path.length; i++) {
-                if (rel_path[i] == '/') depth++;
-            }
 
             bool is_deleted =
                 ((event_type & INotify.EventType.DELETE) != 0 ||
@@ -128,10 +111,19 @@ namespace BobLauncher {
                     : false;
 
             if (is_deleted) {
-                handle_file_delete(path);
+                FileTreeManager.remove_file(path);
             } else {
+                DirectoryConfig? config = find_best_dc(path);
+                if (config == null) return;
+
+                int depth = 0;
+                string rel_path = path.substring(config.path.length);
+
+                for (int i = 0; i < rel_path.length; i++) {
+                    if (rel_path[i] == '/') depth++;
+                }
                 var work = new DirectoryWork(path, config, depth, new GenericArray<string>());
-                handle_file_change(work);
+                handle_file_add_or_change(work);
             }
         }
 
@@ -206,25 +198,20 @@ namespace BobLauncher {
             monitor = null;
         }
 
-        private void queue_directory(
+        private void queue_addition(
             string path,
             DirectoryConfig config,
             int depth,
             GenericArray<string>? gitignore_patterns
         ) {
             if (Threading.atomic_load(ref cancelled) == 1) return;
-
-            var work = new DirectoryWork(path, config, depth, gitignore_patterns);
-            // since there is a fixed number of slots, we'll use glib's scheduler
-            Idle.add(() => {
-                Threading.run(() => {
-                    process_directory(work);
-                });
-                return false;
-            }, GLib.Priority.LOW);
+            Threading.run(() => {
+                var work = new DirectoryWork(path, config, depth, gitignore_patterns);
+                handle_file_add_or_change(work);
+            });
         }
 
-        private void handle_file_change(DirectoryWork work) {
+        private void handle_file_add_or_change(DirectoryWork work) {
             if (should_ignore_file(work.path)) {
                 return;
             }
@@ -276,30 +263,10 @@ namespace BobLauncher {
                     continue;
                 }
 
-                queue_directory(
-                    child_path,
-                    work.config,
-                    work.depth + 1,
-                    gitignore_patterns
-                );
-            }
-        }
-
-        private void handle_file_delete(string path) {
-            monitor.remove_path(path);
-            FileTreeManager.remove_file(path);
-
-            for (uint i = 0; i < this.shard_count; i++) {
-                uint shard_id = i;
-                Threading.run(() => FileTreeManager.remove_by_prefix_shard(shard_id, path));
-            }
-        }
-
-        private void process_directory(DirectoryWork work) {
-            if (FileUtils.test(work.path, FileTest.EXISTS)) {
-                handle_file_change(work);
-            } else {
-                handle_file_delete(work.path);
+                Idle.add(() => {
+                    queue_addition(child_path, work.config, work.depth + 1, gitignore_patterns);
+                    return false;
+                }, GLib.Priority.LOW);
             }
         }
 

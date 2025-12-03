@@ -139,7 +139,6 @@ plugin_vala_args = [
 if 'file-search' in plugins
     inc_dirs += include_directories('src/file-search')
     plugin_vala_args += '--vapidir=' + join_paths(meson.current_source_dir(), 'src/file-search/vapi')
-    plugin_vala_args += '--pkg=file-hashtable'
     plugin_vala_args += '--vapidir=' + file_monitor_vapi
     plugin_vala_args += '--pkg=file-monitor'
     plugin_vala_args += '--pkg=file-tree-manager'
