@@ -8,6 +8,7 @@
 
 typedef struct {
     uint16_t entry_size;
+    uint32_t hash;
     char str[];
 } FileEntry;
 
@@ -22,7 +23,7 @@ typedef struct {
     char _pad[CACHE_LINE_SIZE - sizeof(char*) - sizeof(size_t) * 3 - sizeof(atomic_flag)];
 } FileTable;
 
-typedef void (*ft_iterator)(uint16_t i, const char* path, void* user_data);
+typedef void (*ft_iterator)(uint16_t i, const char* path, uint32_t hash, void* user_data);
 
 FileTable* ft_create();
 void ft_destroy(FileTable* ft);

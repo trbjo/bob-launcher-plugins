@@ -76,10 +76,9 @@ static inline BobLauncherMatch* custom_factory_func(void *user_data) {
     return match;
 }
 
-static void shard_iter_callback(uint16_t i, const char* path, void* data) {
+static void shard_iter_callback(uint16_t i, const char* path, uint32_t hash, void* data) {
     score_t score = result_container_match_score(((ResultContainer*)data), path);
     if (score > SCORE_THRESHOLD) {
-        uint32_t hash = g_str_hash(path);
         result_container_add_lazy(
             ((ResultContainer*)data),
             hash,

@@ -92,6 +92,7 @@ bool ft_insert(FileTable* ft, const char* path) {
     // 4. Write new entry
     FileEntry* new_entry = (FileEntry*)(ft->data + ins_offset);
     new_entry->entry_size = (uint16_t)entry_size;
+    new_entry->hash = g_str_hash(path);
     strcpy(new_entry->str, path);
 
     ft->used += entry_size;
@@ -171,7 +172,7 @@ void ft_iterate(FileTable* ft, ft_iterator callback, void* user_data) {
 
     while (offset < ft->used) {
         FileEntry* entry = (FileEntry*)(ft->data + offset);
-        callback(i++, entry->str, user_data);
+        callback(i++, entry->str, entry->hash, user_data);
         offset += entry->entry_size;
     }
     spin_unlock(&ft->lock);
