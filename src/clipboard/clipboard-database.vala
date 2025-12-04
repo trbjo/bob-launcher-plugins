@@ -149,7 +149,7 @@ namespace Clipboard {
         };
 
         public Database(Object source) {
-            this.db = DatabaseUtils.open_database(source);
+            this.db = DatabaseUtils.open_database(BOB_LAUNCHER_APP_ID, "clipboard-plugin");
             DatabaseUtils.setup_database(db, setup_statements);
             prepare_statements();
         }

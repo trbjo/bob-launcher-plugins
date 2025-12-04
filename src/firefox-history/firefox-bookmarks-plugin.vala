@@ -138,7 +138,7 @@ namespace BobLauncher {
 
         private string get_shard_db_path(uint shard_id) {
             // Get base database path from DatabaseUtils
-            string base_path = DatabaseUtils.get_database_path(this);
+            string base_path = DatabaseUtils.get_database_path(BOB_LAUNCHER_APP_ID, "firefox-history-plugin");
             string dir_path = Path.get_dirname(base_path);
             string file_name = Path.get_basename(base_path);
 
@@ -161,7 +161,7 @@ namespace BobLauncher {
             try {
                 // First, copy the original places database and open it
                 Sqlite.Database orig_db;
-                string temp_db_path = DatabaseUtils.get_database_path(this) + ".original";
+                string temp_db_path = DatabaseUtils.get_database_path(BOB_LAUNCHER_APP_ID, "firefox-history-plugin") + ".original";
                 File places_file = File.new_for_path(places_path);
                 File temp_db_file = File.new_for_path(temp_db_path);
 
@@ -286,7 +286,7 @@ namespace BobLauncher {
         }
 
         private void cleanup_old_databases() {
-            string temp_db_path = DatabaseUtils.get_database_path(this) + ".original";
+            string temp_db_path = DatabaseUtils.get_database_path(BOB_LAUNCHER_APP_ID, "firefox-history-plugin") + ".original";
 
             delete_database_with_associated_files(temp_db_path);
 

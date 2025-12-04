@@ -331,7 +331,7 @@ namespace BobLauncher {
         public override bool activate() {
             past_commands = new GenericSet<string>(str_hash, str_equal);
 
-            db = DatabaseUtils.open_database(this);
+            db = DatabaseUtils.open_database(BOB_LAUNCHER_APP_ID, "command-plugin");
             create_command_history_table(db);
             load_command_history(db);
             DatabaseUtils.cleanup(db);
@@ -484,7 +484,7 @@ namespace BobLauncher {
             string command = co.command.strip();
             past_commands.add(command);
 
-            var db = DatabaseUtils.open_database(this);
+            var db = DatabaseUtils.open_database(BOB_LAUNCHER_APP_ID, "command-plugin");
             save_command_to_database(db, command);
             DatabaseUtils.cleanup(db);
         }
@@ -505,7 +505,7 @@ namespace BobLauncher {
         }
 
         public bool forget_command(string command) {
-            var db = DatabaseUtils.open_database(this);
+            var db = DatabaseUtils.open_database(BOB_LAUNCHER_APP_ID, "command-plugin");
             string delete_sql = "DELETE FROM command_history WHERE command = ?;";
             Sqlite.Statement delete_stmt = DatabaseUtils.prepare_statement(db, delete_sql);
 

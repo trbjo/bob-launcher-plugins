@@ -65,7 +65,7 @@ namespace Snippets {
         };
 
         public Database(Object source) {
-            this.db = DatabaseUtils.open_database(source);
+            this.db = DatabaseUtils.open_database(BOB_LAUNCHER_APP_ID, "snippets-plugin");
             DatabaseUtils.setup_database(db, setup_statements);
             this.snippet_cache = new HashTable<string, SnippetMetadata>(str_hash, str_equal);
             prepare_statements();
