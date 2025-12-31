@@ -172,8 +172,9 @@ namespace BobLauncher {
         }
 
         public override void search(ResultContainer rs) {
+            bool query_empty = rs.get_query().char_count() == 0;
             foreach (unowned string password in passwords) {
-                if (rs.has_match(password)) {
+                if (query_empty || rs.has_match(password)) {
                     var score = rs.match_score(password);
                     rs.add_lazy_unique(score, () => { return new PassMatch(password); });
                 }

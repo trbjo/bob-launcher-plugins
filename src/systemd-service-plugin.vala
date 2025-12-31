@@ -43,7 +43,6 @@ namespace BobLauncher {
         private GenericArray<Action> service_actions;
 
         public class SystemdServices : SearchBase {
-            public override bool prefer_insertion_order { get { return true; } }
             private DBusConnection session_bus;
             private Variant variant;
             private DBusProxy proxy;
@@ -292,7 +291,9 @@ namespace BobLauncher {
                         Threading.atomic_dec(ref lock);
                     });
                 }
-                while (Threading.atomic_load(ref lock) > 0) { }
+                while (Threading.atomic_load(ref lock) > 0) {
+                    Posix.Sched.yield();
+                }
                 // int64 elapsed = get_monotonic_time() - start_time;
                 // message("load_services took %.3f ms", elapsed / 1000.0);
             }

@@ -65,7 +65,6 @@ namespace BobLauncher {
     }
 
     public class WifiPlugin : SearchBase {
-        public override bool prefer_insertion_order { get { return true; } }
         static ObjectPath? agent_path;
 
         static construct {

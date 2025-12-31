@@ -380,9 +380,8 @@ namespace BobLauncher {
                 int16 base_score = MatchScore.ABOVE_THRESHOLD;
                 unowned ClipboardHash.Entry[] recent_array = recent_entries.get_entries();
                 int length = (int)recent_array.length;
-                for (int i = length-1; i >= 0 ; i--) {
+                for (int i = 0; i < length ; i++) {
                     unowned var entry = recent_array[i];
-                    // uint32 hash = uint32.MAX - (uint32)((entry.timestamp - timestamp_offset) >> 14);
                     rs.add_lazy_unique(base_score, () =>
                         new ClipboardMatch(
                             entry.primkey,

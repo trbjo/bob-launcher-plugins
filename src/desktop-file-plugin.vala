@@ -6,7 +6,6 @@ public Type plugin_init(TypeModule type_module) {
 
 namespace BobLauncher {
     public class DesktopFilePlugin : SearchBase {
-        public override bool prefer_insertion_order { get { return true; } }
         private class DesktopFileMatch : Match, IDesktopApplication {
             public override string get_icon_name() {
                 return icon_name;
@@ -255,7 +254,7 @@ namespace BobLauncher {
 
         private void load_desktop_files_and_mimes() {
             dfs.desktop_files.foreach((k, dfi) => desktop_files.add(new DesktopFileMatch(dfi)));
-            desktop_files.sort((a, b) => strcmp(b.get_title().down(), a.get_title().down()));
+            desktop_files.sort((a, b) => strcmp(a.get_title().down(), b.get_title().down()));
             dfs.mimetype_map.foreach((mime_type, dfi_lst) => {
                 var ow_list = new GenericArray<OpenWithAction>();
                 foreach (unowned var dfi in dfi_lst) {
@@ -278,7 +277,7 @@ namespace BobLauncher {
                 } else if (rs.has_match(title)) {
                     score = rs.match_score(title);
                 } else if (rs.has_match(desc)) {
-                    score = rs.match_score(desc);
+                    score = rs.match_score(desc) >> 1;
                 } else if (dfm.exec.has_prefix(needle) && rs.has_match(dfm.exec)) {
                     score = rs.match_score(dfm.exec);
                 } else {

@@ -11,7 +11,7 @@ namespace BobLauncher {
 
         public override void search(ResultContainer rs) {
             string q = rs.get_query();
-            rs.add_lazy(q.hash(), MatchScore.ABOVE_THRESHOLD, () => new UnknownMatch(q));
+            rs.add_lazy_unique(MatchScore.ABOVE_THRESHOLD, () => new UnknownMatch(q));
         }
     }
 }

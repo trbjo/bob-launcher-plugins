@@ -7,8 +7,6 @@ public Type plugin_init() {
 
 namespace BobLauncher {
     public class ProcessMonitorPlugin : SearchBase {
-        public override bool prefer_insertion_order { get { return true; } }
-
         private enum SortBy {
             PID,
             CPU,

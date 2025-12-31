@@ -60,7 +60,6 @@ namespace BobLauncher {
             }
         }
 
-        // private GLib.HashTable<string, FileMonitor> directory_monitors;
         public GLib.HashTable<string, DesktopFileInfo> desktop_files { get; construct; }
         public GLib.HashTable<string, GenericArray<unowned DesktopFileInfo>> mimetype_map { get; construct; }
         private INotify.Monitor monitor;

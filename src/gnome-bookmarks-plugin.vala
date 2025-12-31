@@ -85,6 +85,10 @@ namespace BobLauncher {
                 return "user-bookmarks";
             }
 
+            public void rehighlight_matches() {
+                base.rehighlight_matches();
+            }
+
             public uint hash { get; construct; }
 
             public BookmarkMatch(string name, string uri) {
@@ -94,6 +98,7 @@ namespace BobLauncher {
 
         public override void search(ResultContainer rs) {
             foreach (var bmk in bookmarks) {
+                bmk.rehighlight_matches(); // ensure the match positions get rehighlighted on a new searcho
                 if (rs.has_match(bmk.get_title())) {
                     var score = rs.match_score(bmk.get_title());
                     rs.add_lazy(bmk.hash, score, bmk.func);

@@ -6,7 +6,6 @@ public Type plugin_init(TypeModule type_module) {
 
 namespace BobLauncher {
     public class DownloadsPlugin : SearchBase {
-        public override bool prefer_insertion_order { get { return true; } }
         private GenericArray<DownloadsContent> sorted_list;
         private INotify.Monitor? file_monitor;
         private File download_directory;

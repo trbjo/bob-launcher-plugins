@@ -90,7 +90,12 @@ plugins = {
     'mpris': files('src/mpris-plugin.vala'),
     'pass': files('src/pass-plugin.vala'),
     'pastebin': files('src/pastebin-plugin.vala'),
-    'recently-used': files('src/recently-used.vala'),
+    'recently-used': files(
+                           'src/file-search/file-hashtable.h',
+                           'src/file-search/file-hashtable.c',
+                           'src/file-search/file-tree-manager.h',
+                           'src/file-search/file-tree-manager.c',
+                           'src/recently-used.vala'),
     'unknown-match': files('src/unknown-match.vala'),
     'ssh': files('src/ssh-plugin.vala'),
     'systemd-service': files('src/systemd-service-plugin.vala'),

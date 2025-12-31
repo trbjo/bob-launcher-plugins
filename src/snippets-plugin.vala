@@ -216,10 +216,10 @@ namespace BobLauncher {
         }
 
         public void search_empty(ResultContainer rs) {
-            int16 base_score = MatchScore.ABOVE_THRESHOLD;
+            Score base_score = MatchScore.ABOVE_THRESHOLD;
             var all_metadata = db.get_all_metadata();
             all_metadata.foreach((key, metadata) => {
-                rs.add_lazy_unique(int16.min(MatchScore.HIGHEST, base_score + (int16)metadata.usage_count), () => {
+                rs.add_lazy_unique(base_score + metadata.usage_count, () => {
                     return metadata.mime_type.has_prefix("text") ?
                      new SnippetText(this, key, metadata.preview, metadata.mime_type) :
                      new SnippetMatch(this, key, metadata.preview, metadata.mime_type);

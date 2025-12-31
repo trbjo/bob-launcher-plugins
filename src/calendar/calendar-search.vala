@@ -99,7 +99,7 @@ namespace BobLauncher {
                 temp_matches.sort((a, b) => {
                     CalendarMatch match_a = (CalendarMatch) a;
                     CalendarMatch match_b = (CalendarMatch) b;
-                    return (int)(match_b.event_time.start - match_a.event_time.start);
+                    return (int)(match_a.event_time.start - match_b.event_time.start);
                 });
 
                 agenda = new GenericArray<CalendarMatch>();
@@ -176,13 +176,13 @@ namespace BobLauncher {
                         for (int i = 0; i < events.length; i++) {
                             var event = events[i];
                             if (rs.has_match(event.summary)) {
-                                rs.add_lazy_unique(MatchScore.ABOVE_THRESHOLD, () => new CalendarMatch(event, cal_name, color));
+                                rs.add_lazy_unique(MatchScore.ABOVE_THRESHOLD + 1, () => new CalendarMatch(event, cal_name, color));
                             }
                         }
                     });
 
                     string query = rs.get_query();
-                    rs.add_lazy_unique(MatchScore.ABOVE_THRESHOLD, () => new CalendarMatchCreate(query));
+                    rs.add_lazy_unique(MatchScore.ABOVE_THRESHOLD + 1, () => new CalendarMatchCreate(query));
                 }
                 spin_unlock();
             }

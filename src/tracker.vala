@@ -78,13 +78,18 @@ namespace BobLauncher {
                     try {
                         string? path = GLib.Filename.from_uri(uri);
                         if (path != null && FileUtils.test(path, FileTest.EXISTS)) {
-                            Score score = (int16)(400.0 * cursor.get_double(1));
+                            Score score = (Score)(400.0 * cursor.get_double(1));
                             string basename = GLib.Path.get_basename (path);
 
                             Score path_score = rs.match_score(path);
                             Score title_score = rs.match_score(basename);
-                            Score final_score = int16.max(int16.max(score, path_score), title_score);
-                            rs.add_lazy(path.hash(), final_score, () => new FileMatch.from_path(path));
+
+                            if (score < path_score)
+                                score = path_score;
+
+                            if (score < title_score)
+                                score = title_score;
+                            rs.add_lazy(path.hash(), score, () => new FileMatch.from_path(path));
                         }
                     } catch (Error e) {
                         warning("could not resolve uri: %s, error: %s", uri, e.message);

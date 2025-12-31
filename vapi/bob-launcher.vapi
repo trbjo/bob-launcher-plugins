@@ -2,11 +2,11 @@
 
 namespace BobLauncher {
 	namespace App {
-		[CCode (cheader_filename = "bob-launcher.h", cname = "run_launcher", has_target = false)]
+		[CCode (cheader_filename = "match-row-label.h", cname = "run_launcher", has_target = false)]
 		public static int run_launcher (int socket_fd);
 	}
 	namespace BobAppInfo {
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static string get_string_from_group (GLib.DesktopAppInfo info, string group_name, string key);
 	}
 	namespace DragAndDropHandler {
@@ -16,64 +16,60 @@ namespace BobLauncher {
 	namespace ScrollController {
 	}
 	namespace Strings {
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static string? decode_html_chars (string? input);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static bool is_word_boundary (unichar c);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static string? replace (string? str, string? chars, string? replacement);
 	}
 	namespace Threading {
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public delegate void TaskFunc ();
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static int atomic_dec (ref int ptr);
 		[CCode (cheader_filename = "stdatomic.h", cname = "atomic_exchange", has_type_id = false)]
 		public static int atomic_exchange (ref int ptr, int value);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static int atomic_inc (ref int ptr);
 		[CCode (cheader_filename = "stdatomic.h", cname = "atomic_load", has_type_id = false)]
 		public static int atomic_load (ref int ptr);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static void atomic_store (ref int ptr, int value);
 		[CCode (cheader_filename = "stdatomic.h", cname = "atomic_compare_exchange_strong", has_type_id = false)]
 		public static bool cas (ref int ptr, ref int expected, int value);
-		[CCode (cheader_filename = "bob-launcher.h")]
-		public static void join (ulong thread_id);
 		[CCode (cheader_filename = "immintrin.h", cname = "_mm_pause", has_type_id = false)]
 		public static void pause ();
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static void run (owned BobLauncher.Threading.TaskFunc task);
-		[CCode (cheader_filename = "bob-launcher.h")]
-		public static ulong spawn_joinable (owned BobLauncher.Threading.TaskFunc task);
 	}
 	namespace Utils {
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static string format_modification_time (GLib.DateTime now, GLib.DateTime mod_time);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static string get_thumbnail_path (string file_path, int size);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static bool is_all_lowercase (string str);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static void launch_app (GLib.AppInfo app_info);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static bool launch_file (GLib.File file);
-		[CCode (cheader_filename = "bob-launcher.h")]
+		[CCode (cheader_filename = "match-row-label.h")]
 		public static void open_command_line (string command, string? app_name = null, bool needs_terminal = false, string? working_dir = null);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public abstract class Action : BobLauncher.Match {
 		protected Action ();
 		protected abstract bool do_execute (BobLauncher.Match source, BobLauncher.Match? target = null);
 		public virtual bool execute (BobLauncher.Match source, BobLauncher.Match? target = null);
 		public abstract BobLauncher.Score get_relevancy (BobLauncher.Match m);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public abstract class ActionTarget : BobLauncher.Action {
 		protected ActionTarget ();
 		public abstract BobLauncher.Match target_match (string query);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public class BobLaunchContext : GLib.Object {
 		public static unowned BobLauncher.BobLaunchContext get_instance ();
 		public bool launch_app (GLib.AppInfo app_info, bool needs_terminal = false, string? action = null);
@@ -83,7 +79,7 @@ namespace BobLauncher {
 		public bool launch_uri (string uri);
 		public bool launch_with_uri (GLib.AppInfo app_info, string uri, string? action = null);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public class Description : GLib.Object {
 		public Pango.AttrList? attributes;
 		public GLib.GenericArray<BobLauncher.Description>? children;
@@ -96,7 +92,7 @@ namespace BobLauncher {
 		public void add_child (BobLauncher.Description child);
 		public Description.container (string css_class = "", Gtk.Orientation orientation = Gtk.Orientation.HORIZONTAL, owned BobLauncher.FragmentFunc? fragment_func = null);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public class FileMatch : BobLauncher.Match, BobLauncher.IFile, BobLauncher.IRichDescription {
 		public const string SEARCH_FILE_ATTRIBUTES;
 		protected override void dispose ();
@@ -108,11 +104,12 @@ namespace BobLauncher {
 		public override string get_icon_name ();
 		public override string get_title ();
 		public override unowned Gtk.Widget? get_tooltip ();
+		public void rehighlight_matches ();
 		public static GLib.GenericArray<string> split_path_with_separators (string path);
 		public string filename { get; construct; }
 		public GLib.DateTime timestamp { get; set; }
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public abstract class Match : GLib.Object {
 		protected Match ();
 		public abstract string get_description ();
@@ -120,7 +117,7 @@ namespace BobLauncher {
 		public abstract string get_title ();
 		public virtual unowned Gtk.Widget? get_tooltip ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public class PaintableWidgetWrapper : Gtk.Widget {
 		public PaintableWidgetWrapper ();
 		protected override void dispose ();
@@ -132,7 +129,7 @@ namespace BobLauncher {
 		public GLib.File file { get; construct; }
 		public GLib.FileInfo file_info { get; set construct; }
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public abstract class PluginBase : BobLauncher.Match {
 		protected string icon_name;
 		protected PluginBase ();
@@ -149,24 +146,23 @@ namespace BobLauncher {
 		public bool enabled { get; set; }
 		public GLib.GenericArray<BobLauncher.SearchBase> search_providers { get; protected set; }
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public abstract class SearchBase : BobLauncher.PluginBase {
 		protected SearchBase ();
 		protected virtual void search (BobLauncher.ResultContainer rs);
 		public virtual void search_shard (BobLauncher.ResultContainer rs, uint shard_id);
 		public GLib.Regex compiled_regex { get; }
 		public bool enabled_in_default_search { get; set; }
-		public virtual bool prefer_insertion_order { get; }
 		public string regex_match { get; set; }
 		public virtual uint shard_count { get; set; }
 		public uint update_interval { get; set; }
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public abstract class SourceMatch : BobLauncher.Match {
 		protected SourceMatch ();
 		public signal void executed (bool success);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public class UnknownMatch : BobLauncher.Match, BobLauncher.ITextMatch {
 		public UnknownMatch (string query_string);
 		public override string get_description ();
@@ -174,17 +170,17 @@ namespace BobLauncher {
 		public string get_mime_type ();
 		public override string get_title ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IActionMatch : GLib.Object {
 		public abstract bool do_action ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IDesktopApplication : GLib.Object {
 		public abstract unowned GLib.GenericArray<BobLauncher.Action> get_actions ();
 		public abstract unowned GLib.DesktopAppInfo get_desktop_appinfo ();
 		public abstract bool needs_terminal ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IFile : GLib.Object {
 		public abstract GLib.File get_file ();
 		public abstract string get_file_path ();
@@ -192,41 +188,43 @@ namespace BobLauncher {
 		public abstract string get_uri ();
 		public abstract bool is_directory ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IRichDescription : BobLauncher.Match {
 		public abstract unowned BobLauncher.Description get_rich_description (Levensteihn.StringInfo si);
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IRichIcon : BobLauncher.Match {
 		public abstract unowned Gtk.Widget get_rich_icon ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface ITextMatch : GLib.Object {
 		public abstract string get_text ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IURIMatch : GLib.Object {
 		public abstract string get_uri ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public interface IURLMatch : GLib.Object {
 		public abstract string get_url ();
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
-	public struct Score : int16 {
+	[CCode (cheader_filename = "match-row-label.h")]
+	public struct Score : int32 {
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public enum FragmentType {
 		IMAGE,
 		TEXT,
 		CONTAINER
 	}
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public delegate void FragmentFunc () throws GLib.Error;
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public const string BOB_LAUNCHER_APP_ID;
-	[CCode (cheader_filename = "bob-launcher.h")]
+	[CCode (cheader_filename = "match-row-label.h")]
 	public const string BOB_LAUNCHER_OBJECT_PATH;
+}
+namespace Unistd {
 }
 namespace Props {
 	[CCode (cheader_filename = "access-appinfo-props.h", cname = "g_desktop_app_info_get_string_from_group", has_type_id = false)]

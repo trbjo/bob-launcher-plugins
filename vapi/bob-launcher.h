@@ -29,7 +29,7 @@ G_BEGIN_DECLS
 #define VALA_EXTERN extern
 #endif
 #endif
-#define BOB_LAUNCHER_FILE_MATCH_SEARCH_FILE_ATTRIBUTES G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_DISPLAY_NAME "," G_FILE_ATTRIBUTE_STANDARD_DESCRIPTION "," G_FILE_ATTRIBUTE_STANDARD_TYPE "," G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE "," G_FILE_ATTRIBUTE_STANDARD_SIZE "," G_FILE_ATTRIBUTE_STANDARD_ICON "," G_FILE_ATTRIBUTE_TIME_CREATED "," G_FILE_ATTRIBUTE_TIME_MODIFIED "," G_FILE_ATTRIBUTE_RECENT_MODIFIED "," G_FILE_ATTRIBUTE_UNIX_MODE "," G_FILE_ATTRIBUTE_STANDARD_IS_SYMLINK "," G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET "," G_FILE_ATTRIBUTE_OWNER_USER "," G_FILE_ATTRIBUTE_OWNER_GROUP "," G_FILE_ATTRIBUTE_THUMBNAIL_PATH_XXLARGE "," G_FILE_ATTRIBUTE_THUMBNAILING_FAILED
+#define BOB_LAUNCHER_FILE_MATCH_SEARCH_FILE_ATTRIBUTES G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_DISPLAY_NAME "," G_FILE_ATTRIBUTE_STANDARD_DESCRIPTION "," G_FILE_ATTRIBUTE_STANDARD_TYPE "," G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE "," G_FILE_ATTRIBUTE_STANDARD_SIZE "," G_FILE_ATTRIBUTE_STANDARD_ICON "," G_FILE_ATTRIBUTE_TIME_CREATED "," G_FILE_ATTRIBUTE_TIME_MODIFIED "," G_FILE_ATTRIBUTE_RECENT_MODIFIED "," G_FILE_ATTRIBUTE_UNIX_MODE "," G_FILE_ATTRIBUTE_STANDARD_IS_SYMLINK "," G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET "," G_FILE_ATTRIBUTE_OWNER_USER "," G_FILE_ATTRIBUTE_OWNER_GROUP "," G_FILE_ATTRIBUTE_TIME_ACCESS "," G_FILE_ATTRIBUTE_THUMBNAIL_PATH_XXLARGE "," G_FILE_ATTRIBUTE_THUMBNAILING_FAILED
 #define BOB_LAUNCHER_BOB_LAUNCHER_APP_ID "io.github.trbjo.bob.launcher"
 #define BOB_LAUNCHER_BOB_LAUNCHER_OBJECT_PATH "/io/github/trbjo/bob/launcher"
 
@@ -160,15 +160,6 @@ typedef struct _BobLauncherFileMatchPrivate BobLauncherFileMatchPrivate;
 typedef struct _BobLauncherPaintableWidgetWrapper BobLauncherPaintableWidgetWrapper;
 typedef struct _BobLauncherPaintableWidgetWrapperClass BobLauncherPaintableWidgetWrapperClass;
 typedef struct _BobLauncherPaintableWidgetWrapperPrivate BobLauncherPaintableWidgetWrapperPrivate;
-typedef enum  {
-	BOB_LAUNCHER_FRAGMENT_TYPE_IMAGE,
-	BOB_LAUNCHER_FRAGMENT_TYPE_TEXT,
-	BOB_LAUNCHER_FRAGMENT_TYPE_CONTAINER
-} BobLauncherFragmentType;
-
-#define BOB_LAUNCHER_TYPE_FRAGMENT_TYPE (bob_launcher_fragment_type_get_type ())
-typedef struct _BobLauncherDescriptionPrivate BobLauncherDescriptionPrivate;
-typedef void (*BobLauncherFragmentFunc) (gpointer user_data, GError** error);
 
 #define BOB_LAUNCHER_TYPE_SOURCE_MATCH (bob_launcher_source_match_get_type ())
 #define BOB_LAUNCHER_SOURCE_MATCH(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_SOURCE_MATCH, BobLauncherSourceMatch))
@@ -181,7 +172,7 @@ typedef struct _BobLauncherSourceMatch BobLauncherSourceMatch;
 typedef struct _BobLauncherSourceMatchClass BobLauncherSourceMatchClass;
 typedef struct _BobLauncherSourceMatchPrivate BobLauncherSourceMatchPrivate;
 typedef struct _BobLauncherActionPrivate BobLauncherActionPrivate;
-typedef gint16 BobLauncherScore;
+typedef gint32 BobLauncherScore;
 
 #define BOB_LAUNCHER_TYPE_ACTION_TARGET (bob_launcher_action_target_get_type ())
 #define BOB_LAUNCHER_ACTION_TARGET(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_ACTION_TARGET, BobLauncherActionTarget))
@@ -193,6 +184,15 @@ typedef gint16 BobLauncherScore;
 typedef struct _BobLauncherActionTarget BobLauncherActionTarget;
 typedef struct _BobLauncherActionTargetClass BobLauncherActionTargetClass;
 typedef struct _BobLauncherActionTargetPrivate BobLauncherActionTargetPrivate;
+typedef enum  {
+	BOB_LAUNCHER_FRAGMENT_TYPE_IMAGE,
+	BOB_LAUNCHER_FRAGMENT_TYPE_TEXT,
+	BOB_LAUNCHER_FRAGMENT_TYPE_CONTAINER
+} BobLauncherFragmentType;
+
+#define BOB_LAUNCHER_TYPE_FRAGMENT_TYPE (bob_launcher_fragment_type_get_type ())
+typedef struct _BobLauncherDescriptionPrivate BobLauncherDescriptionPrivate;
+typedef void (*BobLauncherFragmentFunc) (gpointer user_data, GError** error);
 
 #define BOB_LAUNCHER_TYPE_UNKNOWN_MATCH (bob_launcher_unknown_match_get_type ())
 #define BOB_LAUNCHER_UNKNOWN_MATCH(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), BOB_LAUNCHER_TYPE_UNKNOWN_MATCH, BobLauncherUnknownMatch))
@@ -314,24 +314,6 @@ struct _BobLauncherPaintableWidgetWrapperClass {
 	GtkWidgetClass parent_class;
 };
 
-struct _BobLauncherDescription {
-	GObject parent_instance;
-	BobLauncherDescriptionPrivate * priv;
-	gchar* text;
-	gchar* css_class;
-	BobLauncherFragmentType fragment_type;
-	GPtrArray* children;
-	BobLauncherFragmentFunc fragment_func;
-	gpointer fragment_func_target;
-	GDestroyNotify fragment_func_target_destroy_notify;
-	PangoAttrList* attributes;
-	GtkOrientation orientation;
-};
-
-struct _BobLauncherDescriptionClass {
-	GObjectClass parent_class;
-};
-
 struct _BobLauncherSourceMatch {
 	BobLauncherMatch parent_instance;
 	BobLauncherSourceMatchPrivate * priv;
@@ -361,6 +343,24 @@ struct _BobLauncherActionTarget {
 struct _BobLauncherActionTargetClass {
 	BobLauncherActionClass parent_class;
 	BobLauncherMatch* (*target_match) (BobLauncherActionTarget* self, const gchar* query);
+};
+
+struct _BobLauncherDescription {
+	GObject parent_instance;
+	BobLauncherDescriptionPrivate * priv;
+	gchar* text;
+	gchar* css_class;
+	BobLauncherFragmentType fragment_type;
+	GPtrArray* children;
+	BobLauncherFragmentFunc fragment_func;
+	gpointer fragment_func_target;
+	GDestroyNotify fragment_func_target_destroy_notify;
+	PangoAttrList* attributes;
+	GtkOrientation orientation;
+};
+
+struct _BobLauncherDescriptionClass {
+	GObjectClass parent_class;
 };
 
 struct _BobLauncherUnknownMatch {
@@ -398,7 +398,6 @@ struct _BobLauncherSearchBaseClass {
 	BobLauncherPluginBaseClass parent_class;
 	void (*search) (BobLauncherSearchBase* self, ResultContainer* rs);
 	void (*search_shard) (BobLauncherSearchBase* self, ResultContainer* rs, guint shard_id);
-	gboolean (*get_prefer_insertion_order) (BobLauncherSearchBase* self);
 	guint (*get_shard_count) (BobLauncherSearchBase* self);
 	void (*set_shard_count) (BobLauncherSearchBase* self, guint value);
 };
@@ -470,6 +469,7 @@ VALA_EXTERN gboolean bob_launcher_bob_launch_context_launch_app_with_files (BobL
                                                                 const gchar* action);
 VALA_EXTERN GType bob_launcher_file_match_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherFileMatch, g_object_unref)
+VALA_EXTERN void bob_launcher_file_match_rehighlight_matches (BobLauncherFileMatch* self);
 VALA_EXTERN GPtrArray* bob_launcher_file_match_split_path_with_separators (const gchar* path);
 VALA_EXTERN BobLauncherDescription* bob_launcher_file_match_generate_description_for_file (needle_info* si,
                                                                                const gchar* file_path,
@@ -497,6 +497,28 @@ VALA_EXTERN GFile* bob_launcher_paintable_widget_wrapper_get_file (BobLauncherPa
 VALA_EXTERN GFileInfo* bob_launcher_paintable_widget_wrapper_get_file_info (BobLauncherPaintableWidgetWrapper* self);
 VALA_EXTERN void bob_launcher_paintable_widget_wrapper_set_file_info (BobLauncherPaintableWidgetWrapper* self,
                                                           GFileInfo* value);
+VALA_EXTERN GType bob_launcher_source_match_get_type (void) G_GNUC_CONST ;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherSourceMatch, g_object_unref)
+VALA_EXTERN BobLauncherSourceMatch* bob_launcher_source_match_construct (GType object_type);
+VALA_EXTERN BobLauncherMatch* bob_launcher_match_construct (GType object_type);
+VALA_EXTERN gchar* bob_launcher_match_get_title (BobLauncherMatch* self);
+VALA_EXTERN gchar* bob_launcher_match_get_icon_name (BobLauncherMatch* self);
+VALA_EXTERN gchar* bob_launcher_match_get_description (BobLauncherMatch* self);
+VALA_EXTERN GtkWidget* bob_launcher_match_get_tooltip (BobLauncherMatch* self);
+VALA_EXTERN GType bob_launcher_action_target_get_type (void) G_GNUC_CONST ;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherActionTarget, g_object_unref)
+VALA_EXTERN BobLauncherActionTarget* bob_launcher_action_target_construct (GType object_type);
+VALA_EXTERN BobLauncherMatch* bob_launcher_action_target_target_match (BobLauncherActionTarget* self,
+                                                           const gchar* query);
+VALA_EXTERN BobLauncherAction* bob_launcher_action_construct (GType object_type);
+VALA_EXTERN gboolean bob_launcher_action_do_execute (BobLauncherAction* self,
+                                         BobLauncherMatch* source,
+                                         BobLauncherMatch* target);
+VALA_EXTERN gboolean bob_launcher_action_execute (BobLauncherAction* self,
+                                      BobLauncherMatch* source,
+                                      BobLauncherMatch* target);
+VALA_EXTERN BobLauncherScore bob_launcher_action_get_relevancy (BobLauncherAction* self,
+                                                    BobLauncherMatch* m);
 VALA_EXTERN GType bob_launcher_fragment_type_get_type (void) G_GNUC_CONST ;
 VALA_EXTERN BobLauncherDescription* bob_launcher_description_new (const gchar* text,
                                                       const gchar* css_class,
@@ -526,28 +548,6 @@ VALA_EXTERN BobLauncherDescription* bob_launcher_description_construct_container
                                                                       GDestroyNotify fragment_func_target_destroy_notify);
 VALA_EXTERN void bob_launcher_description_add_child (BobLauncherDescription* self,
                                          BobLauncherDescription* child);
-VALA_EXTERN GType bob_launcher_source_match_get_type (void) G_GNUC_CONST ;
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherSourceMatch, g_object_unref)
-VALA_EXTERN BobLauncherSourceMatch* bob_launcher_source_match_construct (GType object_type);
-VALA_EXTERN BobLauncherMatch* bob_launcher_match_construct (GType object_type);
-VALA_EXTERN gchar* bob_launcher_match_get_title (BobLauncherMatch* self);
-VALA_EXTERN gchar* bob_launcher_match_get_icon_name (BobLauncherMatch* self);
-VALA_EXTERN gchar* bob_launcher_match_get_description (BobLauncherMatch* self);
-VALA_EXTERN GtkWidget* bob_launcher_match_get_tooltip (BobLauncherMatch* self);
-VALA_EXTERN GType bob_launcher_action_target_get_type (void) G_GNUC_CONST ;
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherActionTarget, g_object_unref)
-VALA_EXTERN BobLauncherActionTarget* bob_launcher_action_target_construct (GType object_type);
-VALA_EXTERN BobLauncherMatch* bob_launcher_action_target_target_match (BobLauncherActionTarget* self,
-                                                           const gchar* query);
-VALA_EXTERN BobLauncherAction* bob_launcher_action_construct (GType object_type);
-VALA_EXTERN gboolean bob_launcher_action_do_execute (BobLauncherAction* self,
-                                         BobLauncherMatch* source,
-                                         BobLauncherMatch* target);
-VALA_EXTERN gboolean bob_launcher_action_execute (BobLauncherAction* self,
-                                      BobLauncherMatch* source,
-                                      BobLauncherMatch* target);
-VALA_EXTERN BobLauncherScore bob_launcher_action_get_relevancy (BobLauncherAction* self,
-                                                    BobLauncherMatch* m);
 VALA_EXTERN GType bob_launcher_unknown_match_get_type (void) G_GNUC_CONST ;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (BobLauncherUnknownMatch, g_object_unref)
 VALA_EXTERN gchar* bob_launcher_unknown_match_get_mime_type (BobLauncherUnknownMatch* self);
@@ -584,7 +584,6 @@ VALA_EXTERN void bob_launcher_search_base_search_shard (BobLauncherSearchBase* s
                                             ResultContainer* rs,
                                             guint shard_id);
 VALA_EXTERN BobLauncherSearchBase* bob_launcher_search_base_construct (GType object_type);
-VALA_EXTERN gboolean bob_launcher_search_base_get_prefer_insertion_order (BobLauncherSearchBase* self);
 VALA_EXTERN guint bob_launcher_search_base_get_shard_count (BobLauncherSearchBase* self);
 VALA_EXTERN void bob_launcher_search_base_set_shard_count (BobLauncherSearchBase* self,
                                                guint value);
@@ -610,10 +609,6 @@ VALA_EXTERN gchar* bob_launcher_bob_app_info_get_string_from_group (GDesktopAppI
 VALA_EXTERN void bob_launcher_threading_run (BobLauncherThreadingTaskFunc task,
                                  gpointer task_target,
                                  GDestroyNotify task_target_destroy_notify);
-VALA_EXTERN gulong bob_launcher_threading_spawn_joinable (BobLauncherThreadingTaskFunc task,
-                                              gpointer task_target,
-                                              GDestroyNotify task_target_destroy_notify);
-VALA_EXTERN void bob_launcher_threading_join (gulong thread_id);
 VALA_EXTERN gint bob_launcher_threading_atomic_inc (gint* ptr);
 VALA_EXTERN gint bob_launcher_threading_atomic_dec (gint* ptr);
 VALA_EXTERN void bob_launcher_threading_atomic_store (gint* ptr,

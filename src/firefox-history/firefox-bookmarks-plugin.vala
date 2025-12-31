@@ -466,12 +466,10 @@ namespace BobLauncher {
                     try {
                         string? path = Filename.from_uri(new_url, null);
                         if (path != null && FileUtils.test(path, FileTest.EXISTS)) {
-                            Score title_score = rs.match_score(Path.get_basename(path));
+                            Score score = rs.match_score(Path.get_basename(path));
                             Score path_score = rs.match_score(path);
-
-                            Score final_score = int16.max(title_score, path_score);
-
-                            rs.add_lazy(path.hash(), final_score, () => new FileMatch.from_uri(new_url));
+                            if (path_score > score) score = path_score;
+                            rs.add_lazy(path.hash(), score, () => new FileMatch.from_uri(new_url));
                         }
                     } catch (GLib.ConvertError e) {
                         continue;

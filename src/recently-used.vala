@@ -5,12 +5,15 @@ public Type plugin_init(TypeModule type_module) {
 
 namespace BobLauncher {
     public class RecentlyUsedPlugin : SearchBase {
-        public override bool prefer_insertion_order { get { return true; } }
         private const string RECENT_XML_NAME = "recently-used.xbel";
         private GenericArray<FileInfo> recent_files;
+        private GenericArray<GenericArray<unowned FileInfo>> recent_files_inner;
+        private GenericArray<GenericArray<unowned string>> path_names_inner;
+        private GenericArray<string> path_names;
         private INotify.Monitor? file_monitor;
         private File recent_file;
         private string self_uri;
+        const int num_shards = 8;
 
         construct {
             recent_files = new GenericArray<FileInfo>();
@@ -19,6 +22,10 @@ namespace BobLauncher {
         }
 
         public override bool activate() {
+            base.shard_count = num_shards;
+            FileTreeManager.initialize(num_shards);
+
+
             recent_file = File.new_for_path(Path.build_filename(
                 Environment.get_home_dir(), "." + RECENT_XML_NAME, null));
 
@@ -79,6 +86,8 @@ namespace BobLauncher {
             } catch (Error err) {
                 warning("Unable to parse %s: %s", recent_file.get_path(), err.message);
             }
+            sort_list();
+            build_path_names();
         }
 
         private const string SEARCH_FILE_ATTRIBUTES =
@@ -96,10 +105,14 @@ namespace BobLauncher {
                 var file = File.new_for_uri(uri);
 
                 if (!file.query_exists()) {
+
                     bf.remove_item(uri);
+                    FileTreeManager.remove_file(file.get_path());
                     debug("Skipping non-existent file: %s", uri);
                     return;
                 }
+                FileTreeManager.add_file(file.get_path());
+                return;
 
                 var file_info = file.query_info(SEARCH_FILE_ATTRIBUTES, FileQueryInfoFlags.NONE, null);
 
@@ -139,30 +152,67 @@ namespace BobLauncher {
             recent_files.sort((a, b) => (int)(a.get_attribute_int64("custom::timestamp") - b.get_attribute_int64("custom::timestamp")));
         }
 
-        public override void search(ResultContainer rs) {
-            sort_list();
+        private void build_path_names() {
+            path_names_inner = new GenericArray<GenericArray<unowned string>>(num_shards);
+            recent_files_inner = new GenericArray<GenericArray<unowned FileInfo>>(num_shards);
+            uint total_length = recent_files.length;
+            path_names = new GenericArray<string>(total_length);
+
+            uint chunk = (total_length + num_shards - 1) / num_shards;
+            GenericArray<unowned string> _path_names = new GenericArray<unowned string>(chunk);
+            for (int shard_id = 0; shard_id < num_shards; shard_id++) {
+                path_names_inner.add(new GenericArray<unowned string>());
+                recent_files_inner.add(new GenericArray<unowned FileInfo>());
+
+                uint start = shard_id * chunk;
+                uint end = (shard_id + 1) * chunk;
+                if (end > recent_files.length) end = recent_files.length;
+
+                for (uint j = start; j < end; j++) {
+                    var file_info = recent_files.get(j);
+                    string uri = file_info.get_attribute_string("custom::uri");
+                    string filepath = GLib.Filename.from_uri(uri);
+                    path_names.add(filepath);
+
+                    path_names_inner.get(shard_id).add(filepath);
+                    recent_files_inner.get(shard_id).add(file_info);
+                }
+            }
+        }
+
+        protected override void search_shard(ResultContainer rs, uint shard_id) {
+            FileTreeManager.tree_manager_shard(rs, shard_id);
+            return;
+
+            uint chunk = (recent_files.length + num_shards - 1) / num_shards;
+            uint start = shard_id * chunk;
+            // uint end = (shard_id + 1) * chunk;
+            // if (end > recent_files.length) end = recent_files.length;
+
+            unowned GenericArray<unowned string> my_paths = path_names_inner.get(shard_id);
+            unowned GenericArray<unowned FileInfo> _recent_files = recent_files_inner.get(shard_id);
 
             unowned string needle = rs.get_query();
             bool needle_empty = needle == "";
-            foreach (var file_info in recent_files) {
-                unowned string title = file_info.get_display_name();
-                string uri = file_info.get_attribute_string("custom::uri");
-                try {
-                    string filepath = GLib.Filename.from_uri(uri);
-                    Score path_score = rs.match_score(filepath);
-                    if (needle_empty || path_score >= MatchScore.ABOVE_THRESHOLD) {
-                        // Extract timestamp from FileInfo
-                        int64 timestamp_unix = file_info.get_attribute_int64("custom::timestamp");
-                        DateTime? timestamp = new DateTime.from_unix_utc(timestamp_unix);
-                        rs.add_lazy(filepath.hash(), path_score, () => new RecentlyUsedMatch(
-                                title,
-                                filepath,
-                                file_info.get_content_type(),
-                                timestamp
-                            )
-                        );
-                    }
-                } catch (Error e) { }
+            message("shard: %u, recent_files: %u, my_paths: %u", shard_id, recent_files.length, my_paths.length);
+            uint index = 0;
+
+            foreach (unowned string path_name in my_paths) {
+                Score path_score = needle_empty ? MatchScore.ABOVE_THRESHOLD : rs.match_score(path_name);
+                if (path_score > MatchScore.BELOW_THRESHOLD) {
+                    unowned FileInfo file_info = _recent_files.data[index];
+                    unowned string title = file_info.get_display_name();
+                    int64 timestamp_unix = file_info.get_attribute_int64("custom::timestamp");
+                    DateTime? timestamp = new DateTime.from_unix_utc(timestamp_unix);
+                    rs.add_lazy(path_name.hash(), path_score, () => new RecentlyUsedMatch(
+                            title,
+                            path_name,
+                            file_info.get_content_type(),
+                            timestamp
+                        )
+                    );
+                }
+                index++;
             }
         }
 

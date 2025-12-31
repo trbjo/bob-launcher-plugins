@@ -77,7 +77,7 @@ namespace BobLauncher {
         }
 
         public override bool activate() {
-            const int num_shards = 128;
+            const int num_shards = 16;
             // TODO: make configurable and dynamic.
 
             base.shard_count = num_shards;
@@ -212,42 +212,50 @@ namespace BobLauncher {
         }
 
         private void handle_file_add_or_change(DirectoryWork work) {
-            if (should_ignore_file(work.path)) {
+            string? resolved_path = Posix.realpath(work.path);
+            if (resolved_path == null) {
                 return;
             }
 
-            FileTreeManager.add_file(work.path);
+            if (should_ignore_file(resolved_path)) {
+                return;
+            }
+
+            FileTreeManager.add_file(resolved_path);
 
             if (work.depth >= work.config.max_depth) {
                 return;
             }
 
-            if (!FileUtils.test(work.path, FileTest.IS_DIR)) {
+            if (!FileUtils.test(resolved_path, FileTest.IS_DIR)) {
                 return;
             }
 
-            monitor.add_path(work.path);
+            Posix.Dir? dir = Posix.opendir(resolved_path);
+            if (dir == null) {
+                debug("Error enumerating directory: %s", strerror(errno));
+                return;
+            }
+
+            monitor.add_path(resolved_path);
 
             var gitignore_patterns = work.gitignore_patterns.copy((item) => item);
             if (work.config.respect_gitignore) {
-                var gitignore_path = Path.build_filename(work.path, ".gitignore");
+                var gitignore_path = Path.build_filename(resolved_path, ".gitignore");
                 if (FileUtils.test(gitignore_path, FileTest.EXISTS)) {
                     var current_patterns = load_gitignore_patterns(File.new_for_path(gitignore_path));
                     gitignore_patterns.extend(current_patterns, (item) => item.strip());
                 }
             }
 
-            Dir dir;
+            unowned Posix.DirEnt? entry;
+            while ((entry = Posix.readdir(dir)) != null) {
+                unowned string name = (string) entry.d_name;
 
-            try {
-                dir = Dir.open(work.path);
-            } catch (FileError e) {
-                warning("Error enumerating directory: %s", e.message);
-                return;
-            }
+                if (name == "." || name == "..") {
+                    continue;
+                }
 
-            string? name;
-            while ((name = dir.read_name()) != null) {
                 if (!work.config.show_hidden && name.has_prefix(".")) {
                     continue;
                 }
@@ -256,17 +264,19 @@ namespace BobLauncher {
                     continue;
                 }
 
-                var child_path = Path.build_filename(work.path, name);
+                var child_path = Path.build_filename(resolved_path, name);
 
-                if (directory_configs.contains(child_path)) {
-                    debug("already have: %s, not recursing for: %s", child_path, work.config.path);
+                string? resolved_child = Posix.realpath(child_path);
+                if (resolved_child == null) {
                     continue;
                 }
 
-                Idle.add(() => {
-                    queue_addition(child_path, work.config, work.depth + 1, gitignore_patterns);
-                    return false;
-                }, GLib.Priority.LOW);
+                if (directory_configs.contains(resolved_child)) {
+                    debug("already have: %s, not recursing for: %s", resolved_child, work.config.path);
+                    continue;
+                }
+
+                queue_addition(resolved_child, work.config, work.depth + 1, gitignore_patterns);
             }
         }
 

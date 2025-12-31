@@ -31,7 +31,7 @@ namespace BobLauncher {
 
             public override Score get_relevancy(Match m) {
                 if (m is IFile) {
-                    return MatchScore.THRESHOLD;
+                    return MatchScore.ABOVE_THRESHOLD;
                 }
                 return MatchScore.LOWEST;
             }

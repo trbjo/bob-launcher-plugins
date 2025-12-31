@@ -19,7 +19,7 @@ namespace Snippets {
             public string preview;
             public int64 created_at;
             public int64 last_used;
-            public uint usage_count;
+            public int32 usage_count;
 
             public SnippetMetadata(string key, string mime_type, string? description, string preview,
                                   int64 created_at, int64 last_used, uint usage_count) {
@@ -29,7 +29,7 @@ namespace Snippets {
                 this.preview = preview;
                 this.created_at = created_at;
                 this.last_used = last_used;
-                this.usage_count = usage_count;
+                this.usage_count = (int32)usage_count;
             }
         }
 
